@@ -13,12 +13,6 @@
     <name>JobLeaf :: Infrastructure</name>
 
     <dependencies>
-        <!--<dependency>-->
-        <!--            <groupId>com.seby.jobleaf</groupId>-->
-        <!--            <artifactId>exceptions-starter</artifactId>-->
-        <!--            <version>1.0.0-SNAPSHOT</version>-->
-        <!--        </dependency>-->
-        <!-- Internal Modules -->
         <dependency>
             <groupId>com.seby.jobleaf</groupId>
             <artifactId>job-leaf-model</artifactId>

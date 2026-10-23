@@ -13,11 +13,6 @@
     <name>JobLeaf :: Model</name>
 
     <dependencies>
-        <!--<dependency>-->
-        <!--            <groupId>com.seby.jobleaf</groupId>-->
-        <!--            <artifactId>exceptions-starter</artifactId>-->
-        <!--            <version>1.0.0-SNAPSHOT</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-commons</artifactId>
