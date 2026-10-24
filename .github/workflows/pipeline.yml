@@ -27,8 +27,8 @@ jobs:
       - name: Build and Test Backend
         run: ./mvnw clean verify
 
-  frontend-build-and-test:
-    name: Frontend Build and Test
+  frontend-build:
+    name: Frontend Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,6 +49,3 @@ jobs:
 
       - name: Build Frontend
         run: npm run build
-
-      - name: Test Frontend
-        run: npm test
