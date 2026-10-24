@@ -1,11 +1,14 @@
-name: JobLeaf Backend Pipeline
+name: JobLeaf Pipeline
 
 on: [push, pull_request]
 
 jobs:
-  build-and-test:
-    name: Build and Test Code
+  backend-build-and-test:
+    name: Backend Build and Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
 
     steps:
       - name: Checkout repository
@@ -14,12 +17,38 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
-          java-version: '25'
-          distribution: 'temurin'
-          cache: 'maven'
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
 
       - name: Grant execute permission for Maven wrapper
         run: chmod +x mvnw
 
-      - name: Build and Test
+      - name: Build and Test Backend
         run: ./mvnw clean verify
+
+  frontend-build-and-test:
+    name: Frontend Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Frontend
+        run: npm run build
+
+      - name: Test Frontend
+        run: npm test
