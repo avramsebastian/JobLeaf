@@ -1,0 +1,12 @@
+# VCS / IDE / OS noise
+**/.git
+**/.idea
+**/*.iml
+**/.vscode
+**/.DS_Store
+
+# Build outputs
+../apis/target/classes
+!infrastructure/target/*.jar
+
+../postman-collections/
