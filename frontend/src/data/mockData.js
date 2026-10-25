@@ -1,5 +1,19 @@
 // Comprehensive mock data generator for the job portal
 
+// Company data
+
+const companies = [
+  {
+    name: "Name",
+    logo: "",
+    industry: "Technology",
+    size: "Large",
+    rating: 4.5,
+    locations: ["San Francisco", "New York", "Austin"],
+    founded: 2010,
+  }
+]
+
 // Job titles by category
 const jobTitles = {
   Technology: [
