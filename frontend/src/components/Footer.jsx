@@ -170,6 +170,13 @@ const Footer = () => {
               </div>
             </div>
           </div>
+
+          {/* Academic Educational Disclaimer */}
+          <div className="mt-8 pt-6 border-t border-gray-800/80 text-center">
+            <p className="text-xs text-gray-400 dark:text-gray-500 max-w-4xl mx-auto leading-relaxed">
+              🎓 <strong className="font-semibold text-gray-300">Academic Project Disclaimer:</strong> This website was developed strictly for educational and evaluation purposes. All company names, logos, trademarks, and listings are fictional or used as demonstration parodies and remain the property of their respective owners.
+            </p>
+          </div>
         </div>
       </div>
     </footer>
