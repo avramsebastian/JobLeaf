@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { jobTitles, cities, experienceLevels } from '../data/mockData'
+import { jobTitles, experienceLevels } from '../data/mockData'
 import { useJobs } from '../context/JobContext'
 import { useJobsData } from '../contexts/JobsDataContext'
 import { useAuth } from '../context/AuthContext'

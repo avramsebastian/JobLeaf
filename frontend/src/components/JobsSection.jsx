@@ -127,18 +127,19 @@ const JobsSection = () => {
           ))}
         </div>
 
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {displayedJobs.length} of {filteredJobs.length} jobs
+        <div className="flex flex-col-reverse md:flex-row md:justify-between md:items-center gap-4 mb-8">
+          <div className="text-sm font-medium text-gray-600 dark:text-gray-400 text-center md:text-left">
+            Showing <span className="font-semibold text-gray-900 dark:text-gray-200">{displayedJobs.length}</span> of{' '}
+            <span className="font-semibold text-gray-900 dark:text-gray-200">{filteredJobs.length}</span> jobs
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-center md:justify-end gap-2">
             {filters.map((filter) => (
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   activeFilter === filter
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                    ? 'bg-primary-600 text-white shadow-md shadow-primary-500/25 dark:bg-primary-500'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >

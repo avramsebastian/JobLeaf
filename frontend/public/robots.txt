@@ -1,0 +1,14 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow private authenticated pages from search crawler indexing
+Disallow: /admin/
+Disallow: /employer/
+Disallow: /profile
+Disallow: /applied-jobs
+Disallow: /saved-jobs
+Disallow: /job-applicants/
+
+# Sitemap
+Sitemap: http://localhost:5173/sitemap.xml

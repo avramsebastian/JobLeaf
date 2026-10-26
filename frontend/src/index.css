@@ -153,3 +153,21 @@ button:hover, .btn:hover {
 .animate-scaleIn {
   animation: scaleIn 0.6s ease-out forwards;
 }
+
+/* Mobile optimizations */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Prevent unwanted zoom on focus in iOS Safari (requires min 16px font-size) */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Improve tap responsiveness and remove 300ms tap delay on touch devices */
+a, button, input, select, textarea {
+  touch-action: manipulation;
+}
