@@ -54,7 +54,7 @@ const transformJob = (job) => {
 /**
  * Fetch all companies from the backend
  * Uses default API version (1.0) via Accept header in httpClient interceptor
- * Accept: application/vnd.eazyapp+json;v=1.0
+ * Accept: application/vnd.jobleaf+json;v=1.0
  */
 export const fetchCompanies = async () => {
   try {
@@ -109,7 +109,7 @@ export const fetchAllJobs = async () => {
 /**
  * Fetch a single company by ID
  * Uses default API version (1.0) via Accept header in httpClient interceptor
- * Accept: application/vnd.eazyapp+json;v=1.0
+ * Accept: application/vnd.jobleaf+json;v=1.0
  */
 export const fetchCompanyById = async (id) => {
   try {

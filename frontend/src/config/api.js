@@ -5,19 +5,19 @@
 
 // Base URL for the backend API
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/jobleaf";
 
 // API Version Configuration
 // Default version sent in Accept header for all REST API calls
-// Format: application/vnd.eazyapp+json;v=1.0
+// Format: application/vnd.jobleaf+json;v=1.0
 export const DEFAULT_API_VERSION = "1.0";
 
 // Supported API versions
-export const SUPPORTED_API_VERSIONS = ["1.0", "2.0", "3.0"];
+export const SUPPORTED_API_VERSIONS = ["1.0", "2.0"];
 
 // Helper to generate Accept header value for a specific version
 export const getAcceptHeader = (version = DEFAULT_API_VERSION) =>
-  `application/vnd.eazyapp+json;v=${version}`;
+  `application/vnd.jobleaf+json;v=${version}`;
 
 // API Endpoints
 export const API_ENDPOINTS = {

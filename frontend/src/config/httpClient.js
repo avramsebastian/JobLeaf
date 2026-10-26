@@ -5,10 +5,10 @@ import { API_BASE_URL } from "./api";
 /**
  * Default API Accept Header
  * This value is used for the Accept header in all API requests
- * Follows the vendor-specific media type format: application/vnd.eazyapp+json;v=1.0
+ * Follows the vendor-specific media type format: application/vnd.jobleaf+json;v=1.0
  * Developers can override this in individual requests if needed
  */
-export const DEFAULT_ACCEPT_HEADER = "application/vnd.eazyapp+json;v=1.0";
+export const DEFAULT_ACCEPT_HEADER = "application/vnd.jobleaf+json;v=1.0";
 
 /**
  * Create axios instance with default configuration
@@ -195,7 +195,7 @@ httpClient.interceptors.response.use(
  * @example
  * // Use specific version (2.0)
  * const response = await httpClient.get('/companies', {
- *   headers: { 'Accept': 'application/vnd.eazyapp+json;v=2.0' }
+ *   headers: { 'Accept': 'application/vnd.jobleaf+json;v=2.0' }
  * });
  *
  * @example
@@ -203,7 +203,7 @@ httpClient.interceptors.response.use(
  * const response = await withApiVersion('2.0').get('/companies');
  */
 export const withApiVersion = (version) => {
-  const acceptHeader = `application/vnd.eazyapp+json;v=${version}`;
+  const acceptHeader = `application/vnd.jobleaf+json;v=${version}`;
   return {
     get: (url, config = {}) =>
       httpClient.get(url, {
