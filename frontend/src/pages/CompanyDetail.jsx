@@ -61,7 +61,7 @@ const CompanyDetail = () => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
-    
+
     if (diffInHours < 24) {
       return `${diffInHours}h ago`
     } else {
@@ -219,11 +219,10 @@ const CompanyDetail = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-primary-600 text-white shadow-lg'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                  }`}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === tab.id
+                    ? 'bg-primary-600 text-white shadow-lg'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                    }`}
                 >
                   <span>{tab.icon}</span>
                   <span>{tab.label}</span>
@@ -259,7 +258,7 @@ const CompanyDetail = () => {
                 <div className="bg-white dark:bg-gray-800 backdrop-blur-xl rounded-3xl shadow-lg border-2 border-gray-200 dark:border-gray-700 p-8">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Our Mission</h3>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    To empower businesses and individuals through innovative technology solutions that drive growth, 
+                    To empower businesses and individuals through innovative technology solutions that drive growth,
                     efficiency, and success in an ever-evolving digital landscape.
                   </p>
                 </div>
@@ -290,7 +289,7 @@ const CompanyDetail = () => {
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                       Open Positions ({companyJobs.length})
                     </h2>
-                    <Link 
+                    <Link
                       to={`/jobs?company=${encodeURIComponent(company.name)}`}
                       className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold"
                     >
@@ -319,13 +318,12 @@ const CompanyDetail = () => {
                               <span>•</span>
                               <span>{job.jobType}</span>
                               <span>•</span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                job.workType === 'Remote' 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                  : job.workType === 'Hybrid'
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${job.workType === 'Remote'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : job.workType === 'Hybrid'
                                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                                   : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                              }`}>
+                                }`}>
                                 {job.workType}
                               </span>
                             </div>
@@ -363,11 +361,10 @@ const CompanyDetail = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentJobPage(pageNum)}
-                          className={`px-3 py-2 rounded-lg font-semibold transition-colors ${
-                            currentJobPage === pageNum
-                              ? 'bg-primary-600 text-white'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'
-                          }`}
+                          className={`px-3 py-2 rounded-lg font-semibold transition-colors ${currentJobPage === pageNum
+                            ? 'bg-primary-600 text-white'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -503,12 +500,20 @@ const CompanyDetail = () => {
                     Visit Website
                   </a>
                 )}
-                <button className="w-full p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-colors font-semibold">
+                <a
+                  href={`https://www.linkedin.com/company/${company.name ? company.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'jobleaf'}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-colors font-semibold text-center"
+                >
                   Follow on LinkedIn
-                </button>
-                <button className="w-full p-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:border-primary-600 hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-semibold">
+                </a>
+                <a
+                  href={`mailto:hr@${company.name ? company.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'example'}.com?subject=Job%20Inquiry%20-%20${encodeURIComponent(company.name || 'JobLeaf')}`}
+                  className="block w-full p-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:border-primary-600 hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-semibold text-center"
+                >
                   Contact HR
-                </button>
+                </a>
               </div>
             </div>
           </div>

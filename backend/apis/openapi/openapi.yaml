@@ -1,26 +1,260 @@
 openapi: 3.0.3
 info:
   title: JobLeaf API
-  description: OpenAPI specification for JobLeaf service
   version: 1.0.0
+  description: API specification for managing companies, users, jobs.
+  contact:
+    name: JobLeaf Team
+
 servers:
-  - url: http://localhost:8080
-    description: Local development server
+  - url: http://localhost:8080/jobleaf
+    description: Local development server.
+
+security:
+  - bearerAuth: [ ]
+
+tags:
+  - name: Company
+    description: Companies management endpoints.
+
 paths:
-  /api/v1/health:
+  /companies:
     get:
-      summary: Health check endpoint
-      operationId: getHealth
-      tags:
-        - Health
+      tags: [ Company ]
+      operationId: listCompanies
+      summary: List companies.
+      description: Returns all companies. Accessible by guests and logged-in users.
+      security: [ ]
+      parameters: [ ]
       responses:
-        '200':
-          description: Service is healthy
+        "200":
+          description: Companies retrieved successfully.
           content:
-            application/json:
+            application/vnd.jobleaf+json;v=1.0:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: UP
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "406": { $ref: '#/components/responses/NotAcceptable' }
+        "429": { $ref: '#/components/responses/TooManyRequests' }
+        default: { $ref: '#/components/responses/UnexpectedError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CompanyId:
+      name: companyId
+      in: path
+      required: true
+      description: Unique company identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      minLength: 36
+      maxLength: 36
+      pattern: '^[0-9a-fA-F-]{36}$'
+
+    DateTime:
+      type: string
+      format: date-time
+
+    GeneralString:
+      type: string
+      minLength: 1
+      maxLength: 255
+      pattern: '^[0-9a-zA-Z-_À-ÿ-!@#$%^&*():;\/., ]{1,255}$'
+      description: String in a general form.
+      example: "Message and/or data."
+
+    NonEmptyTitle:
+      type: string
+      maxLength: 255
+      minLength: 1
+      pattern: '^[A-Za-z0-9 _&/.(),À-ÿ-]{1,255}$'
+
+    Link:
+      type: string
+      minLength: 1
+      maxLength: 1024
+      pattern: '^[0-9a-zA-Z-_À-ÿ-!@#$%&*():;\/.,=?+~\[\]]{1,1024}$'
+      example: "https://example.com"
+
+    CompanyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - industry
+        - size
+        - rating
+        - founded
+        - createdBy
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          maxLength: 255
+          description: Name of the company.
+          example: "DerpCorp Inc."
+        logo:
+          type: string
+          maxLength: 500
+          description: Relative path or URL to the company logo.
+          example: "/logos/derpcorp.png"
+        industry:
+          type: string
+          maxLength: 100
+          description: Industry category the company operates in.
+          example: "Technology"
+        size:
+          type: string
+          maxLength: 50
+          description: Company size descriptor.
+          example: "Large"
+        rating:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 5.0
+          description: Company review rating.
+          example: 4.5
+        locations:
+          type: string
+          maxLength: 1000
+          description: Comma-separated list of company locations.
+          example: "San Francisco, New York, Austin"
+        founded:
+          type: integer
+          format: int32
+          description: Year the company was founded.
+          example: 2010
+        description:
+          type: string
+          maxLength: 255
+          description: Short description of the company.
+          example: "DerpCorp Inc. is a leading technology company founded in 2010. We're committed to innovation and creating exceptional experiences for our customers and employees."
+        employees:
+          type: integer
+          format: int32
+          description: Total number of employees.
+          example: 15000
+        website:
+          type: string
+          maxLength: 500
+          description: Official company website URL.
+          example: "https://www.derpcorp.example"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        createdBy:
+          $ref: '#/components/schemas/Uuid'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedBy:
+          $ref: '#/components/schemas/Uuid'
+
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+      properties:
+        type:
+          type: string
+          maxLength: 200
+          pattern: '^https?://.+$'
+        title:
+          type: string
+          maxLength: 120
+          pattern: '^[A-Za-z0-9 _\-]{1,120}$'
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+          maxLength: 1000
+          pattern: '^[A-Za-z0-9\s_,.:;()''"/\\!?-]{1,1000}$'
+        instance:
+          type: string
+          maxLength: 200
+          pattern: '^[A-Za-z0-9_.:/-]+$'
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Not Found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotAcceptable:
+      description: Not Acceptable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnsupportedMediaType:
+      description: Unsupported Media Type
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    TooManyRequests:
+      description: Too Many Requests
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnexpectedError:
+      description: Unexpected Error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'

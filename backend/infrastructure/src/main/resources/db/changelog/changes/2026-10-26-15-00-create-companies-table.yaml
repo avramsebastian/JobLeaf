@@ -1,0 +1,79 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-15-00-create-companies-table
+      author: Seby
+      comment: "Creates the companies table."
+
+      changes:
+        - createTable:
+            tableName: companies
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: logo
+                  type: VARCHAR(500)
+              - column:
+                  name: industry
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: size
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rating
+                  type: DECIMAL(3, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: locations
+                  type: VARCHAR(1000)
+              - column:
+                  name: founded
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: employees
+                  type: INT
+              - column:
+                  name: website
+                  type: VARCHAR(500)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: companies
