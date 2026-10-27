@@ -42,7 +42,7 @@ public class CompanyEntity extends BaseEntity {
     @Column(name = "founded", nullable = false)
     private int founded;
 
-    @Column(name = "description", columnDefinition = "TINYTEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "employees")

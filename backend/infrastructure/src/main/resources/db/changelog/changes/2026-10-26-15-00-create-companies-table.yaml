@@ -47,7 +47,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: description
-                  type: TINYTEXT
+                  type: TEXT
               - column:
                   name: employees
                   type: INT
