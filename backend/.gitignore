@@ -22,7 +22,7 @@ bin/
 *.iml
 *.ipr
 out/
-!./model/src/main/java/com/seby/jobleaf/model/domain/port/out/
+!model/src/main/java/com/seby/jobleaf/domain/port/out/
 
 ### NetBeans ###
 /nbproject/private/
