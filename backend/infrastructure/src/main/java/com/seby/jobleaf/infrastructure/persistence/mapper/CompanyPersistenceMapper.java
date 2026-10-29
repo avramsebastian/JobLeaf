@@ -8,6 +8,10 @@ import org.springframework.stereotype.Component;
 public class CompanyPersistenceMapper {
 
     public Company toDomain(CompanyEntity entity) {
+        if(entity == null){
+            return null;
+        }
+
         return new Company(
                 entity.id,
                 entity.getName(),

@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Audited;
+import org.hibernate.envers.Audited;
 
 /**
  * JPA entity for the {@code companies} table.
