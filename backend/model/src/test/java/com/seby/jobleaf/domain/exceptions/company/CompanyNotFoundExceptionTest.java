@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.exceptions;
+package com.seby.jobleaf.domain.exceptions.company;
 
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
 import org.junit.jupiter.api.DisplayName;

@@ -19,49 +19,111 @@ services:
       timeout: 5s
       retries: 5
 
-  sonarqube-db:
-    image: postgres:16-alpine
-    container_name: jobleaf-sonarqube-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB:        ${SONARQUBE_DB}
-      POSTGRES_USER:      ${SONARQUBE_USER}
-      POSTGRES_PASSWORD:  ${SONARQUBE_PASSWORD}
-    volumes:
-      - sonarqube_db:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${SONARQUBE_USER} -d ${SONARQUBE_DB}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+#  sonarqube-db:
+#    image: postgres:16-alpine
+#    container_name: jobleaf-sonarqube-db
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_DB:        ${SONARQUBE_DB}
+#      POSTGRES_USER:      ${SONARQUBE_USER}
+#      POSTGRES_PASSWORD:  ${SONARQUBE_PASSWORD}
+#    volumes:
+#      - sonarqube_db:/var/lib/postgresql/data
+#    healthcheck:
+#      test: [ "CMD-SHELL", "pg_isready -U ${SONARQUBE_USER} -d ${SONARQUBE_DB}" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#  sonarqube:
+#    image: sonarqube:lts-community
+#    container_name: jobleaf-sonarqube
+#    restart: unless-stopped
+#    environment:
+#      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/${SONARQUBE_DB}
+#      SONAR_JDBC_USERNAME: ${SONARQUBE_USER}
+#      SONAR_JDBC_PASSWORD: ${SONARQUBE_PASSWORD}
+#    ports:
+#      - "${SONARQUBE_PORT}:9000"
+#    volumes:
+#      - sonarqube_data:/opt/sonarqube/data
+#      - sonarqube_logs:/opt/sonarqube/logs
+#      - sonarqube_extensions:/opt/sonarqube/extensions
+#    ulimits:
+#      nofile:
+#        soft: 131072
+#        hard: 131072
+#    depends_on:
+#      sonarqube-db:
+#        condition: service_healthy
+#    healthcheck:
+#      test: [ "CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"' || exit 1" ]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 10
+#      start_period: 120s
 
-  sonarqube:
-    image: sonarqube:lts-community
-    container_name: jobleaf-sonarqube
+  tempo:
+    image: grafana/tempo:2.10.10
+    container_name: jobleaf-tempo
+    user: "0"
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: jobleaf-loki
+    user: "0"
+    command: [ "-config.file=/etc/loki/local-config.yaml" ]
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/tmp/loki
+    ports:
+      - "3100:3100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: jobleaf-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: jobleaf-grafana
     restart: unless-stopped
     environment:
-      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/${SONARQUBE_DB}
-      SONAR_JDBC_USERNAME: ${SONARQUBE_USER}
-      SONAR_JDBC_PASSWORD: ${SONARQUBE_PASSWORD}
-    ports:
-      - "${SONARQUBE_PORT}:9000"
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceToMetrics
     volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_logs:/opt/sonarqube/logs
-      - sonarqube_extensions:/opt/sonarqube/extensions
-    ulimits:
-      nofile:
-        soft: 131072
-        hard: 131072
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
     depends_on:
-      sonarqube-db:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"' || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
+      - tempo
+      - loki
+      - prometheus
 
 volumes:
   postgres_data:
@@ -69,3 +131,7 @@ volumes:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
+  tempo_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:

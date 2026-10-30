@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-30-15-00-backfill-contacts-aud-audit-columns
+      author: Seby
+      comment: "Backfills the audit columns of contacts_aud insert revisions written before BaseEntity was audited."
+      changes:
+        - sql:
+            sql: >
+              UPDATE contacts_aud a
+              SET created_at = c.created_at,
+                  created_by = c.created_by,
+                  updated_at = c.updated_at,
+                  updated_by = c.updated_by
+              FROM contacts c
+              WHERE a.id = c.id
+                AND a.revtype = 0
+                AND a.created_at IS NULL;
+      rollback:
+        - empty
+
+  - changeSet:
+      id: 2026-10-30-15-01-backfill-companies-aud-audit-columns
+      author: Seby
+      comment: "Backfills the audit columns of companies_aud insert revisions written before BaseEntity was audited."
+      changes:
+        - sql:
+            sql: >
+              UPDATE companies_aud a
+              SET created_at = c.created_at,
+                  created_by = c.created_by,
+                  updated_at = c.updated_at,
+                  updated_by = c.updated_by
+              FROM companies c
+              WHERE a.id = c.id
+                AND a.revtype = 0
+                AND a.created_at IS NULL;
+      rollback:
+        - empty

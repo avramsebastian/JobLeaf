@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-16-00-alter-revinfo-seq-increment
+      author: Seby
+      comment: "Aligns the revinfo_seq increment to 50 to match Hibernate Envers default allocation size."
+      changes:
+        - sql:
+            sql: ALTER SEQUENCE jobleaf.revinfo_seq INCREMENT BY 50;
+      rollback:
+        - sql:
+            sql: ALTER SEQUENCE jobleaf.revinfo_seq INCREMENT BY 1;

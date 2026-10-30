@@ -16,6 +16,8 @@ security:
 tags:
   - name: Company
     description: Companies management endpoints.
+  - name: Contact
+    description: Contacts management endpointss.
 
 paths:
   /companies:
@@ -40,6 +42,39 @@ paths:
         "406": { $ref: '#/components/responses/NotAcceptable' }
         "429": { $ref: '#/components/responses/TooManyRequests' }
         default: { $ref: '#/components/responses/UnexpectedError' }
+
+  /contacts:
+    post:
+      tags: [Contact]
+      operationId: createContact
+      summary: Create contact.
+      description: Creates contact from the contact us page.
+      security: [ ]
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CreateContactRequest'
+      responses:
+        '201':
+          description: Contact created successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CreateContactResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
 
 components:
   securitySchemes:
@@ -69,6 +104,19 @@ components:
       type: string
       format: date-time
 
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+      pattern: '^[^\s@]+@[^\s@]+\.[^\s@]+$'
+
+    PersonName:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: '^[\p{L}\p{N}\p{P}\p{Zs}\-''.]+$'
+      example: "Name"
+
     GeneralString:
       type: string
       minLength: 1
@@ -89,6 +137,40 @@ components:
       maxLength: 1024
       pattern: '^[0-9a-zA-Z-_À-ÿ-!@#$%&*():;\/.,=?+~\[\]]{1,1024}$'
       example: "https://example.com"
+
+    # Requests
+
+    CreateContactRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - message
+        - name
+        - subject
+        - userType
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        message:
+          type: string
+          maxLength: 255
+          minLength: 10
+          example: "Message"
+        name:
+          $ref: '#/components/schemas/PersonName'
+        subject:
+          type: string
+          maxLength: 100
+          description: Subject for the contact.
+          example: "Subject"
+        userType:
+          type: string
+          maxLength: 100
+          description: Type of user of the contact.
+          example: "Employer"
+
+    # Responses
 
     CompanyResponse:
       type: object
@@ -112,7 +194,7 @@ components:
         logo:
           type: string
           maxLength: 500
-          description: Relative path or URL to the company logo.
+          description: Relative path to the company logo.
           example: "/logos/derpcorp.png"
         industry:
           type: string
@@ -164,6 +246,18 @@ components:
           $ref: '#/components/schemas/DateTime'
         updatedBy:
           $ref: '#/components/schemas/Uuid'
+
+    CreateContactResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          maxLength: 100
+          description: Status of the processed request.
+          example: "Request processed successfully!"
 
     ProblemDetails:
       type: object

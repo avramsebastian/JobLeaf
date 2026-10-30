@@ -15,7 +15,11 @@ import { API_ENDPOINTS } from '../config/api';
  */
 export const submitContactForm = async (contactData) => {
   try {
-    const response = await httpClient.post(API_ENDPOINTS.CONTACTS, contactData);
+    const response = await httpClient.post(API_ENDPOINTS.CONTACTS, contactData, {
+      headers: {
+        'Content-Type': 'application/vnd.jobleaf+json;v=1.0',
+      },
+    });
     return response.data;
   } catch (error) {
     console.error('Error submitting contact form:', error);
