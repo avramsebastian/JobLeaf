@@ -1,5 +1,10 @@
 package com.seby.jobleaf.infrastructure.web.filter;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.sdk.trace.ReadableSpan;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -78,5 +84,28 @@ class RequestLoggingFilterTest {
                 .hasMessage("Database down");
 
         verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Should mark the current span as failed for error responses")
+    void shouldMarkSpanAsErrorForErrorResponses() throws ServletException, IOException {
+        // Given
+        when(request.getRequestURI()).thenReturn("/jobleaf/does-not-exist");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getQueryString()).thenReturn(null);
+        when(response.getStatus()).thenReturn(404);
+
+        try (SdkTracerProvider tracerProvider = SdkTracerProvider.builder().build()) {
+            Span span = tracerProvider.get("test").spanBuilder("request").startSpan();
+            try (Scope ignored = span.makeCurrent()) {
+                // When
+                filter.doFilter(request, response, filterChain);
+
+                // Then
+                span.end();
+                assertThat(((ReadableSpan) span).toSpanData().getStatus().getStatusCode())
+                        .isEqualTo(StatusCode.ERROR);
+            }
+        }
     }
 }

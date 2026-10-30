@@ -41,8 +41,8 @@ opencode.json
 Desktop.ini
 
 # Environments
-.env
-!.env.example
+docker/.env
+!docker/.env.example
 
 **/generated-sources/
 

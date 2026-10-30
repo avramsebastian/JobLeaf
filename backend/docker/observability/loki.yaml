@@ -26,7 +26,6 @@ schema_config:
         prefix: index_
         period: 24h
 
-# Enable OTLP HTTP log ingestion (POST /otlp/v1/logs)
 limits_config:
   allow_structured_metadata: true
   otlp_config:

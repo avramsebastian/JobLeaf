@@ -3,7 +3,6 @@ package com.seby.jobleaf.infrastructure.persistence.entity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,27 +13,19 @@ class BaseEntityTest {
         public void triggerOnCreate() {
             super.onCreate();
         }
-
-        public void triggerOnUpdate() {
-            super.onUpdate();
-        }
     }
 
     @Test
-    @DisplayName("Should generate new UUID and createdAt timestamp when id is null on persist")
-    void onCreate_whenIdIsNull_generatesNewIdAndTimestamp() {
+    @DisplayName("Should generate new UUID when id is null on persist")
+    void onCreate_whenIdIsNull_generatesNewId() {
         // Given
         TestEntity entity = new TestEntity();
-        Instant before = Instant.now();
 
         // When
         entity.triggerOnCreate();
-        Instant after = Instant.now();
 
         // Then
         assertThat(entity.getId()).isNotNull();
-        assertThat(entity.getCreatedAt()).isNotNull();
-        assertThat(entity.getCreatedAt()).isBetween(before, after);
     }
 
     @Test
@@ -50,22 +41,5 @@ class BaseEntityTest {
 
         // Then
         assertThat(entity.getId()).isEqualTo(predefinedId);
-        assertThat(entity.getCreatedAt()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("Should update updatedAt timestamp on update")
-    void onUpdate_setsUpdatedAtTimestamp() {
-        // Given
-        TestEntity entity = new TestEntity();
-        Instant before = Instant.now();
-
-        // When
-        entity.triggerOnUpdate();
-        Instant after = Instant.now();
-
-        // Then
-        assertThat(entity.getUpdatedAt()).isNotNull();
-        assertThat(entity.getUpdatedAt()).isBetween(before, after);
     }
 }

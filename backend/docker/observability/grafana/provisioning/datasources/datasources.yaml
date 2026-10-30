@@ -32,7 +32,7 @@ datasources:
         filterByTraceId: true
         filterBySpanId: false
         customQuery: true
-        query: '{app="jobleaf"} |= "${__trace.traceId}"'
+        query: '{application="jobleaf"} |= "${__trace.traceId}"'
       tracesToMetrics:
         datasourceUid: prometheus
         spanStartTimeShift: '-1m'
