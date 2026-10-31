@@ -18,8 +18,9 @@ public record Contact(
         Instant updatedAt,
         UUID updatedBy
 ) {
-    public static final UUID SYSTEM_ACTOR_UUID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
+    /**
+     * Creates a new, not yet persisted contact. Timestamps stay empty: they are set by JPA auditing on insert.
+     */
     public static Contact create(
             UUID id,
             String name,
@@ -27,9 +28,8 @@ public record Contact(
             String userType,
             String subject,
             String message,
-            UUID createdBy,
-            Instant now
+            UUID createdBy
     ){
-        return new Contact(id, name, email, userType, subject, message, now, createdBy, now, createdBy);
+        return new Contact(id, name, email, userType, subject, message, null, createdBy, null, createdBy);
     }
 }

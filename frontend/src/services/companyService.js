@@ -2,30 +2,33 @@ import httpClient, { withApiVersion } from "../config/httpClient";
 import { API_ENDPOINTS } from "../config/api";
 
 /**
- * Transform job data from backend to frontend structure
+ * The backend sends requirements/benefits as JSON arrays; older payloads sent them as JSON strings.
  */
-const transformJob = (job) => {
-  // Parse JSON strings for requirements and benefits
-  let requirements = [];
-  let benefits = [];
-
+const toStringList = (value, field, jobId) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
   try {
-    requirements = job.requirements ? JSON.parse(job.requirements) : [];
-  } catch (e) {
-    console.warn("Failed to parse requirements for job:", job.id);
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    console.warn(`Failed to parse ${field} for job:`, jobId);
+    return [];
   }
+};
 
-  try {
-    benefits = job.benefits ? JSON.parse(job.benefits) : [];
-  } catch (e) {
-    console.warn("Failed to parse benefits for job:", job.id);
-  }
+/**
+ * Transform job data from backend to frontend structure.
+ * Jobs are nested inside their company, so the company name and logo come from the parent company.
+ */
+const transformJob = (job, company) => {
+  const requirements = toStringList(job.requirements, "requirements", job.id);
+  const benefits = toStringList(job.benefits, "benefits", job.id);
 
   return {
     id: job.id,
     title: job.title,
-    company: job.companyName,
-    companyLogo: job.companyLogo,
+    company: company.name,
+    companyLogo: company.logo,
     companyId: job.companyId,
     location: job.location,
     workType: job.workType,
@@ -40,6 +43,7 @@ const transformJob = (job) => {
     },
     description: job.description,
     requirements,
+    skills: requirements,
     benefits,
     postedDate: job.postedDate,
     applicationDeadline: job.applicationDeadline,
@@ -74,34 +78,10 @@ export const fetchCompanies = async () => {
       description: company.description,
       employees: company.employees,
       website: company.website,
-      jobs: company.jobs ? company.jobs.map(transformJob) : [],
+      jobs: company.jobs ? company.jobs.map((job) => transformJob(job, company)) : [],
     }));
   } catch (error) {
     console.error("Error fetching companies:", error);
-    throw error;
-  }
-};
-
-/**
- * Fetch all jobs from all companies
- */
-export const fetchAllJobs = async () => {
-  try {
-    console.log("[companyService] Fetching companies...");
-    const companies = await fetchCompanies();
-    console.log("[companyService] Fetched companies:", companies.length);
-    console.log("[companyService] Sample company:", companies[0]);
-
-    // Flatten all jobs from all companies into a single array
-    const allJobs = companies.flatMap((company) => company.jobs || []);
-    console.log(
-      "[companyService] Total jobs from all companies:",
-      allJobs.length
-    );
-
-    return allJobs;
-  } catch (error) {
-    console.error("[companyService] Error fetching jobs:", error);
     throw error;
   }
 };

@@ -2,18 +2,25 @@ package com.seby.jobleaf.infrastructure.persistence.mapper;
 
 import com.seby.jobleaf.domain.model.Company;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CompanyPersistenceMapper {
 
+    private final JobPersistenceMapper jobMapper;
+
+    /**
+     * Maps the company together with its lazily loaded jobs, so it must be called inside an open transaction.
+     */
     public Company toDomain(CompanyEntity entity) {
         if(entity == null){
             return null;
         }
 
         return new Company(
-                entity.id,
+                entity.getId(),
                 entity.getName(),
                 entity.getLogo(),
                 entity.getIndustry(),
@@ -24,10 +31,11 @@ public class CompanyPersistenceMapper {
                 entity.getDescription(),
                 entity.getEmployees(),
                 entity.getWebsite(),
-                entity.createdAt,
-                entity.createdBy,
-                entity.updatedAt,
-                entity.updatedBy
+                entity.getCreatedAt(),
+                entity.getCreatedBy(),
+                entity.getUpdatedAt(),
+                entity.getUpdatedBy(),
+                entity.getJobs().stream().map(jobMapper::toDomain).toList()
         );
     }
 
@@ -37,7 +45,7 @@ public class CompanyPersistenceMapper {
         }
 
         CompanyEntity entity = new CompanyEntity();
-        entity.id = company.id();
+        entity.setId(company.id());
         entity.setName(company.name());
         entity.setLogo(company.logo());
         entity.setIndustry(company.industry());
@@ -48,10 +56,10 @@ public class CompanyPersistenceMapper {
         entity.setDescription(company.description());
         entity.setEmployees(company.employees());
         entity.setWebsite(company.website());
-        entity.createdAt = company.createdAt();
-        entity.createdBy = company.createdBy();
-        entity.updatedAt = company.updatedAt();
-        entity.updatedBy = company.updatedBy();
+        entity.restoreAuditFields(company.createdAt(), company.createdBy(), company.updatedAt(), company.updatedBy());
+        if (company.jobs() != null) {
+            entity.getJobs().addAll(company.jobs().stream().map(job -> jobMapper.toEntity(job, entity)).toList());
+        }
 
         return entity;
     }

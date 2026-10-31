@@ -1,6 +1,7 @@
 package com.seby.jobleaf.domain.model;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,11 +17,12 @@ public record Company(
         String locations,
         int founded,
         String description,
-        int employees,
+        Integer employees,
         String website,
         Instant createdAt,
         UUID createdBy,
         Instant updatedAt,
-        UUID updatedBy
+        UUID updatedBy,
+        List<Job> jobs
 ) {
 }

@@ -45,7 +45,8 @@ class ReadCompanyServiceTest {
                 Instant.now(),
                 UUID.randomUUID(),
                 Instant.now(),
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                List.of()
         );
     }
 
@@ -97,6 +98,20 @@ class ReadCompanyServiceTest {
         // Then
         assertThat(actualCompanies).hasSize(2);
         assertThat(actualCompanies).containsExactly(company1, company2);
+        verify(companyRepositoryPort).findAll();
+    }
+
+    @Test
+    @DisplayName("Should return an empty list when there are no companies")
+    void listAllCompanies_whenNoCompanies_returnsEmptyList() {
+        // Given
+        when(companyRepositoryPort.findAll()).thenReturn(List.of());
+
+        // When
+        List<Company> actualCompanies = readCompanyService.listAllCompanies();
+
+        // Then
+        assertThat(actualCompanies).isEmpty();
         verify(companyRepositoryPort).findAll();
     }
 }
