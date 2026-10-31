@@ -1,10 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { fetchAllJobs } from '../services/companyService';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useCompanies } from './CompaniesContext';
 
 const JobsDataContext = createContext();
-
-// Cache duration in milliseconds (5 minutes)
-const CACHE_DURATION = 5 * 60 * 1000;
 
 export const useJobsData = () => {
   const context = useContext(JobsDataContext);
@@ -14,78 +11,36 @@ export const useJobsData = () => {
   return context;
 };
 
+/**
+ * Jobs are nested inside companies in the API response, so this context does not call the API itself:
+ * it derives the jobs from {@link CompaniesProvider}, which owns fetching, caching and refreshing.
+ */
 export const JobsDataProvider = ({ children }) => {
+  const {
+    companies,
+    loading,
+    error: companiesError,
+    refetch,
+    forceRefresh: refreshCompanies,
+    getCacheAge,
+    isCacheStale,
+    lastFetchTime
+  } = useCompanies();
+  // Kept as state (not derived on every render) so local updates like applicationsCount survive until the next refresh
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastFetchTime, setLastFetchTime] = useState(null);
-  const isFetchingRef = useRef(false);
 
-  const loadJobs = useCallback(async (force = false) => {
-    // Prevent multiple simultaneous fetches
-    if (isFetchingRef.current) {
-      console.log('[JobsDataContext] Fetch already in progress, skipping...');
-      return;
-    }
-
-    // Check cache validity
-    const now = Date.now();
-    const cacheValid = lastFetchTime && (now - lastFetchTime) < CACHE_DURATION;
-
-    if (!force && cacheValid) {
-      console.log('[JobsDataContext] Using cached data, cache is still valid');
-      return;
-    }
-
-    try {
-      isFetchingRef.current = true;
-      setLoading(true);
-      console.log('[JobsDataContext] Starting to fetch jobs...');
-      const data = await fetchAllJobs();
-      console.log('[JobsDataContext] Fetched jobs:', data.length, 'jobs');
-      console.log('[JobsDataContext] Sample job:', data[0]);
-      setJobs(data);
-      setLastFetchTime(Date.now());
-      setError(null);
-    } catch (err) {
-      console.error('[JobsDataContext] Error loading jobs:', err);
-      setError('Failed to load jobs. Please try again later.');
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [lastFetchTime]);
-
-  // Initial load
   useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
+    const allJobs = companies.flatMap(company => company.jobs || []);
+    if (companies.length > 0) {
+      console.log(`[JobsDataContext] Derived ${allJobs.length} jobs from ${companies.length} companies`);
+    }
+    setJobs(allJobs);
+  }, [companies]);
 
-  // Auto-refresh every 5 minutes if user is active
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        console.log('[JobsDataContext] Auto-refreshing data...');
-        loadJobs();
-      }
-    }, CACHE_DURATION);
-
-    return () => clearInterval(interval);
-  }, [loadJobs]);
-
-  // Refresh on window focus (when user returns to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('[JobsDataContext] Window focused, checking cache...');
-      loadJobs();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [loadJobs]);
+  const error = companiesError ? 'Failed to load jobs. Please try again later.' : null;
 
   const getJobById = (id) => {
-    return jobs.find(job => job.id === parseInt(id)) || null;
+    return jobs.find(job => String(job.id) === String(id)) || null;
   };
 
   const getJobsByCompany = (companyId) => {
@@ -98,14 +53,14 @@ export const JobsDataProvider = ({ children }) => {
 
   const forceRefresh = async () => {
     console.log('[JobsDataContext] Force refresh requested');
-    await loadJobs(true);
+    await refreshCompanies();
   };
 
   const updateJobApplicationsCount = (jobId, increment = true) => {
     console.log(`[JobsDataContext] ${increment ? 'Incrementing' : 'Decrementing'} applications count for job ${jobId}`);
     setJobs(prevJobs =>
       prevJobs.map(job =>
-        job.id === parseInt(jobId)
+        String(job.id) === String(jobId)
           ? {
               ...job,
               applicationsCount: increment
@@ -117,16 +72,6 @@ export const JobsDataProvider = ({ children }) => {
     );
   };
 
-  const getCacheAge = () => {
-    if (!lastFetchTime) return null;
-    return Math.floor((Date.now() - lastFetchTime) / 1000); // Age in seconds
-  };
-
-  const isCacheStale = () => {
-    if (!lastFetchTime) return true;
-    return (Date.now() - lastFetchTime) >= CACHE_DURATION;
-  };
-
   const value = {
     jobs,
     loading,
@@ -134,7 +79,7 @@ export const JobsDataProvider = ({ children }) => {
     getJobById,
     getJobsByCompany,
     getJobsByCategory,
-    refetch: loadJobs,
+    refetch,
     forceRefresh,
     updateJobApplicationsCount,
     getCacheAge,

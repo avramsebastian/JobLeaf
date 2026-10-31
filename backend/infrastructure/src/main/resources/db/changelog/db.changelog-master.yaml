@@ -11,3 +11,9 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-28-16-00-alter-revinfo-seq-increment.yaml
   - include:
       file: db/changelog/changes/2026-10-30-15-00-backfill-aud-audit-columns.yaml
+  - include:
+      file: db/changelog/changes/2026-10-31-10-00-create-jobs-table.yaml
+  - include:
+      file: db/changelog/changes/2026-10-31-10-05-insert-mock-jobs.yaml
+  - include:
+      file: db/changelog/changes/2026-10-31-12-00-audit-fixes.yaml

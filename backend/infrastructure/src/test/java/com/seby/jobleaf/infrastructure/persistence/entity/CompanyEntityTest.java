@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,7 +83,8 @@ class CompanyEntityTest {
                 founded,
                 description,
                 employees,
-                website
+                website,
+                new ArrayList<>()
         );
 
         // Then
@@ -96,5 +98,6 @@ class CompanyEntityTest {
         assertThat(entity.getDescription()).isEqualTo(description);
         assertThat(entity.getEmployees()).isEqualTo(employees);
         assertThat(entity.getWebsite()).isEqualTo(website);
+        assertThat(entity.getJobs()).isEmpty();
     }
 }

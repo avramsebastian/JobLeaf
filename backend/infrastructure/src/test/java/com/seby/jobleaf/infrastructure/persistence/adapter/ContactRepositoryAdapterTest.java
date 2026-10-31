@@ -51,7 +51,7 @@ class ContactRepositoryAdapterTest {
 
         ContactEntity entityToSave = new ContactEntity();
         ContactEntity savedEntity = new ContactEntity();
-        savedEntity.id = id;
+        savedEntity.setId(id);
 
         when(mapper.toEntity(domainContact)).thenReturn(entityToSave);
         when(contactJpaRepository.save(entityToSave)).thenReturn(savedEntity);
@@ -87,7 +87,7 @@ class ContactRepositoryAdapterTest {
                 null
         );
         ContactEntity entity = new ContactEntity();
-        entity.id = id;
+        entity.setId(id);
 
         when(contactJpaRepository.findById(id)).thenReturn(Optional.of(entity));
         when(mapper.toDomain(entity)).thenReturn(domainContact);

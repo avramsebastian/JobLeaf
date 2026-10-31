@@ -1,13 +1,19 @@
 package com.seby.jobleaf.infrastructure.persistence.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.envers.Audited;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * JPA entity for the {@code companies} table.
@@ -50,4 +56,11 @@ public class CompanyEntity extends BaseEntity {
 
     @Column(name = "website", length = 500)
     private String website;
+
+    /**
+     * Lazily loaded; {@link BatchSize} loads the jobs of several companies per query to avoid N+1 selects.
+     */
+    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
+    private List<JobEntity> jobs = new ArrayList<>();
 }

@@ -20,7 +20,7 @@ class CompanyWebMapperTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new CompanyWebMapper();
+        mapper = new CompanyWebMapper(new JobWebMapper());
     }
 
     @Test
@@ -48,7 +48,8 @@ class CompanyWebMapperTest {
                 createdAt,
                 createdBy,
                 updatedAt,
-                updatedBy
+                updatedBy,
+                List.of()
         );
 
         // When
@@ -92,7 +93,8 @@ class CompanyWebMapperTest {
                 null,
                 null,
                 null,
-                null
+                null,
+                List.of()
         );
 
         // When
@@ -125,7 +127,8 @@ class CompanyWebMapperTest {
                 Instant.now(),
                 UUID.randomUUID(),
                 Instant.now(),
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                List.of()
         );
         Company company2 = new Company(
                 UUID.randomUUID(),
@@ -142,7 +145,8 @@ class CompanyWebMapperTest {
                 Instant.now(),
                 UUID.randomUUID(),
                 Instant.now(),
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                List.of()
         );
 
         // When

@@ -1,0 +1,261 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-31-10-00-create-jobs-table
+      author: Seby
+      comment: "Creates the jobs table referencing companies."
+      changes:
+        - createTable:
+            tableName: jobs
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: company_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_jobs_companies
+                    references: companies(id)
+                    deleteCascade: true
+              - column:
+                  name: location
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: work_type
+                  type: VARCHAR(50)
+                  remarks: "On-site, Remote, Hybrid"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: job_type
+                  type: VARCHAR(50)
+                  remarks: "Full-time, Part-time, Contract, Freelance"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: VARCHAR(100)
+                  remarks: "Technology, Design, Marketing, Sales, Finance, Healthcare, Education, Operations"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: experience_level
+                  type: VARCHAR(50)
+                  remarks: "Entry Level, Mid Level, Senior Level, Executive Level"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: salary_min
+                  type: DECIMAL(12, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: salary_max
+                  type: DECIMAL(12, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: salary_currency
+                  type: VARCHAR(10)
+                  defaultValue: "USD"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: salary_period
+                  type: VARCHAR(20)
+                  defaultValue: "year"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: requirements
+                  type: TEXT
+                  remarks: "JSON array stored as text"
+              - column:
+                  name: benefits
+                  type: TEXT
+                  remarks: "JSON array stored as text"
+              - column:
+                  name: posted_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: application_deadline
+                  type: TIMESTAMP
+              - column:
+                  name: applications_count
+                  type: INT
+                  defaultValueNumeric: 0
+              - column:
+                  name: featured
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+              - column:
+                  name: urgent
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+              - column:
+                  name: remote
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  remarks: "ACTIVE, CLOSED, DRAFT"
+                  defaultValue: "ACTIVE"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+              - column:
+                  name: updated_by
+                  type: UUID
+        - createIndex:
+            tableName: jobs
+            indexName: idx_jobs_company_id
+            columns:
+              - column:
+                  name: company_id
+      rollback:
+        - dropTable:
+            tableName: jobs
+
+  - changeSet:
+      id: 2026-10-31-10-01-create-jobs-aud-table
+      author: Seby
+      comment: "Creates the jobs_aud audit table for Hibernate Envers."
+      changes:
+        - createTable:
+            tableName: jobs_aud
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rev
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revtype
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+              - column:
+                  name: company_id
+                  type: UUID
+              - column:
+                  name: location
+                  type: VARCHAR(255)
+              - column:
+                  name: work_type
+                  type: VARCHAR(50)
+              - column:
+                  name: job_type
+                  type: VARCHAR(50)
+              - column:
+                  name: category
+                  type: VARCHAR(100)
+              - column:
+                  name: experience_level
+                  type: VARCHAR(50)
+              - column:
+                  name: salary_min
+                  type: DECIMAL(12, 2)
+              - column:
+                  name: salary_max
+                  type: DECIMAL(12, 2)
+              - column:
+                  name: salary_currency
+                  type: VARCHAR(10)
+              - column:
+                  name: salary_period
+                  type: VARCHAR(20)
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: requirements
+                  type: TEXT
+              - column:
+                  name: benefits
+                  type: TEXT
+              - column:
+                  name: posted_date
+                  type: TIMESTAMP
+              - column:
+                  name: application_deadline
+                  type: TIMESTAMP
+              - column:
+                  name: applications_count
+                  type: INT
+              - column:
+                  name: featured
+                  type: BOOLEAN
+              - column:
+                  name: urgent
+                  type: BOOLEAN
+              - column:
+                  name: remote
+                  type: BOOLEAN
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+              - column:
+                  name: created_by
+                  type: UUID
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+              - column:
+                  name: updated_by
+                  type: UUID
+        - addPrimaryKey:
+            tableName: jobs_aud
+            columnNames: id, rev
+            constraintName: pk_jobs_aud
+        - addForeignKeyConstraint:
+            baseTableName: jobs_aud
+            baseColumnNames: rev
+            referencedTableName: revinfo
+            referencedColumnNames: rev
+            constraintName: fk_jobs_aud_revinfo
+      rollback:
+        - dropTable:
+            tableName: jobs_aud

@@ -28,17 +28,31 @@ public class ReadCompanyService implements ReadCompanyUseCase {
     @Override
     @Transactional(readOnly = true)
     public Company getCompanyById(UUID id) {
+        log.debug("Reading company with id {}", id);
         var company = companyRepositoryPort.findById(id)
-                .orElseThrow(() -> new CompanyNotFoundException("Company with id " + id + " not found"));
-        log.info("Read Company with id {} ", id);
+                .orElseThrow(() -> {
+                    log.warn("Company with id {} not found", id);
+                    return new CompanyNotFoundException("Company with id " + id + " not found");
+                });
+        log.info("Read company with id {} ({}) with {} jobs", id, company.name(), jobCount(company));
         return company;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Company> listAllCompanies() {
+        log.debug("Listing all companies");
         var companies = companyRepositoryPort.findAll();
-        log.info("Listed {} companies", companies.size());
+        if (companies.isEmpty()) {
+            log.warn("Listed 0 companies, the companies table is empty");
+            return companies;
+        }
+        long totalJobs = companies.stream().mapToLong(ReadCompanyService::jobCount).sum();
+        log.info("Listed {} companies with {} jobs in total", companies.size(), totalJobs);
         return companies;
+    }
+
+    private static int jobCount(Company company) {
+        return company.jobs() == null ? 0 : company.jobs().size();
     }
 }
