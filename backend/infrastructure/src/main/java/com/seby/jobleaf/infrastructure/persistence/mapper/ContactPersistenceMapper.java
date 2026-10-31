@@ -12,16 +12,16 @@ public class ContactPersistenceMapper {
             return null;
         }
         return new Contact(
-                entity.id,
+                entity.getId(),
                 entity.getName(),
                 entity.getEmail(),
                 entity.getUserType(),
                 entity.getSubject(),
                 entity.getMessage(),
-                entity.createdAt,
-                entity.createdBy,
-                entity.updatedAt,
-                entity.updatedBy
+                entity.getCreatedAt(),
+                entity.getCreatedBy(),
+                entity.getUpdatedAt(),
+                entity.getUpdatedBy()
         );
     }
 
@@ -31,16 +31,13 @@ public class ContactPersistenceMapper {
         }
 
         ContactEntity entity = new ContactEntity();
-        entity.id = contact.id();
+        entity.setId(contact.id());
         entity.setName(contact.name());
         entity.setEmail(contact.email());
         entity.setUserType(contact.userType());
         entity.setSubject(contact.subject());
         entity.setMessage(contact.message());
-        entity.createdAt = contact.createdAt();
-        entity.createdBy = contact.createdBy();
-        entity.updatedAt = contact.updatedAt();
-        entity.updatedBy = contact.updatedBy();
+        entity.restoreAuditFields(contact.createdAt(), contact.createdBy(), contact.updatedAt(), contact.updatedBy());
 
         return entity;
     }

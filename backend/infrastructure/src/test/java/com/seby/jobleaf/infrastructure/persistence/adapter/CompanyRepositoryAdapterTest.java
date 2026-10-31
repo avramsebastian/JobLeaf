@@ -48,7 +48,8 @@ class CompanyRepositoryAdapterTest {
                 Instant.now(),
                 UUID.randomUUID(),
                 Instant.now(),
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                List.of()
         );
     }
 
@@ -60,7 +61,7 @@ class CompanyRepositoryAdapterTest {
         Company domainCompany = createSampleCompany(id, "Fintech Corp");
         CompanyEntity entityToSave = new CompanyEntity();
         CompanyEntity savedEntity = new CompanyEntity();
-        savedEntity.id = id;
+        savedEntity.setId(id);
 
         when(mapper.toEntity(domainCompany)).thenReturn(entityToSave);
         when(companyJpaRepository.save(entityToSave)).thenReturn(savedEntity);
@@ -85,7 +86,7 @@ class CompanyRepositoryAdapterTest {
         UUID id = UUID.randomUUID();
         Company expectedCompany = createSampleCompany(id, "Fintech Corp");
         CompanyEntity entity = new CompanyEntity();
-        entity.id = id;
+        entity.setId(id);
 
         when(companyJpaRepository.findById(id)).thenReturn(Optional.of(entity));
         when(mapper.toDomain(entity)).thenReturn(expectedCompany);

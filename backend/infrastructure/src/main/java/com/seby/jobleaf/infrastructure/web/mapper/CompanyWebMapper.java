@@ -2,6 +2,7 @@ package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.CompanyResponse;
 import com.seby.jobleaf.domain.model.Company;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -15,7 +16,10 @@ import static java.util.Optional.ofNullable;
  * Maps between domain {@link Company} aggregates and OpenAPI company DTOs (responses and draft-patch commands).
  */
 @Component
+@RequiredArgsConstructor
 public class CompanyWebMapper {
+
+    private final JobWebMapper jobWebMapper;
 
     public CompanyResponse toCompanyResponse(Company company) {
         var response = new CompanyResponse();
@@ -34,6 +38,7 @@ public class CompanyWebMapper {
         response.setCreatedBy(company.createdBy());
         response.setUpdatedAt(convertInstant(company.updatedAt()));
         response.setUpdatedBy(company.updatedBy());
+        response.setJobs(jobWebMapper.toListJobsResponse(company.jobs()));
         return response;
     }
 

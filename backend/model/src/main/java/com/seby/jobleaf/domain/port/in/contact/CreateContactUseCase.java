@@ -1,11 +1,12 @@
 package com.seby.jobleaf.domain.port.in.contact;
 
+import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.SystemActor;
 
 import java.util.Objects;
 import java.util.UUID;
 
-import static com.seby.jobleaf.domain.model.Contact.SYSTEM_ACTOR_UUID;
 import static com.seby.jobleaf.domain.util.TextUtility.normalizeNullableText;
 
 /**
@@ -23,19 +24,23 @@ public interface CreateContactUseCase {
             String subject,
             String message
     ){
-        public CreateContactCommand{
-            userId = Objects.requireNonNullElse(userId, SYSTEM_ACTOR_UUID);
-            name = normalizeNullableText(name);
-            email = normalizeNullableText(email);
-            userType = normalizeNullableText(userType);
-            subject = normalizeNullableText(subject);
-            message = normalizeNullableText(message);
+        private static final String RESOURCE = "Contact";
 
-            Objects.requireNonNull(name, "Contact name cannot be null!");
-            Objects.requireNonNull(email, "Contact email cannot be null!");
-            Objects.requireNonNull(userType, "Contact userType cannot be null!");
-            Objects.requireNonNull(subject, "Contact subject cannot be null!");
-            Objects.requireNonNull(message, "Contact message cannot be null!");
+        public CreateContactCommand{
+            userId = Objects.requireNonNullElse(userId, SystemActor.ID);
+            name = requireText(name, "name");
+            email = requireText(email, "email");
+            userType = requireText(userType, "userType");
+            subject = requireText(subject, "subject");
+            message = requireText(message, "message");
+        }
+
+        private static String requireText(String value, String field) {
+            String normalized = normalizeNullableText(value);
+            if (normalized == null) {
+                throw DomainValidationException.requiredField(field, RESOURCE);
+            }
+            return normalized;
         }
     }
 }

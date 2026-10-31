@@ -1,0 +1,75 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-31-12-00-add-revinfo-user-id
+      author: Seby
+      comment: "Records which user made each Envers revision."
+      changes:
+        - addColumn:
+            tableName: revinfo
+            columns:
+              - column:
+                  name: user_id
+                  type: UUID
+                  remarks: "Acting user; the system actor (00000000-0000-0000-0000-000000000001) until authentication exists"
+      rollback:
+        - dropColumn:
+            tableName: revinfo
+            columnName: user_id
+
+  - changeSet:
+      id: 2026-10-31-12-01-unify-system-actor
+      author: Seby
+      comment: "Seeded rows used 00000000-0000-0000-0000-000000000000; the system actor is 00000000-0000-0000-0000-000000000001."
+      changes:
+        - sql:
+            sql: |
+              UPDATE companies SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE companies SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE companies_aud SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE companies_aud SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE jobs SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE jobs SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE jobs_aud SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE jobs_aud SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE contacts SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE contacts SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE contacts_aud SET created_by = '00000000-0000-0000-0000-000000000001' WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              UPDATE contacts_aud SET updated_by = '00000000-0000-0000-0000-000000000001' WHERE updated_by = '00000000-0000-0000-0000-000000000000';
+      rollback:
+        - sql:
+            sql: |
+              UPDATE companies SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE companies SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE companies_aud SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE companies_aud SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE jobs SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE jobs SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE jobs_aud SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE jobs_aud SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE contacts SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE contacts SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE contacts_aud SET created_by = '00000000-0000-0000-0000-000000000000' WHERE created_by = '00000000-0000-0000-0000-000000000001';
+              UPDATE contacts_aud SET updated_by = '00000000-0000-0000-0000-000000000000' WHERE updated_by = '00000000-0000-0000-0000-000000000001';
+
+  - changeSet:
+      id: 2026-10-31-12-02-timestamps-with-time-zone
+      author: Seby
+      comment: "Stores timestamps as TIMESTAMP WITH TIME ZONE so java.time.Instant values do not depend on the JVM or session time zone. Existing values were written in UTC."
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE companies ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE companies_aud ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE contacts ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE contacts_aud ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE jobs ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC', ALTER COLUMN posted_date TYPE TIMESTAMP WITH TIME ZONE USING posted_date AT TIME ZONE 'UTC', ALTER COLUMN application_deadline TYPE TIMESTAMP WITH TIME ZONE USING application_deadline AT TIME ZONE 'UTC';
+              ALTER TABLE jobs_aud ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE USING updated_at AT TIME ZONE 'UTC', ALTER COLUMN posted_date TYPE TIMESTAMP WITH TIME ZONE USING posted_date AT TIME ZONE 'UTC', ALTER COLUMN application_deadline TYPE TIMESTAMP WITH TIME ZONE USING application_deadline AT TIME ZONE 'UTC';
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE companies ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE companies_aud ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE contacts ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE contacts_aud ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC';
+              ALTER TABLE jobs ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC', ALTER COLUMN posted_date TYPE TIMESTAMP WITHOUT TIME ZONE USING posted_date AT TIME ZONE 'UTC', ALTER COLUMN application_deadline TYPE TIMESTAMP WITHOUT TIME ZONE USING application_deadline AT TIME ZONE 'UTC';
+              ALTER TABLE jobs_aud ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE USING created_at AT TIME ZONE 'UTC', ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE USING updated_at AT TIME ZONE 'UTC', ALTER COLUMN posted_date TYPE TIMESTAMP WITHOUT TIME ZONE USING posted_date AT TIME ZONE 'UTC', ALTER COLUMN application_deadline TYPE TIMESTAMP WITHOUT TIME ZONE USING application_deadline AT TIME ZONE 'UTC';

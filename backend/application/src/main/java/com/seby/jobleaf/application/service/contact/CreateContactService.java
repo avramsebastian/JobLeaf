@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -32,7 +31,6 @@ public class CreateContactService implements CreateContactUseCase {
     public Contact execute(CreateContactCommand command) {
         Objects.requireNonNull(command, "command");
 
-        Instant now = Instant.now();
         UUID contactId = UUID.randomUUID();
 
         Contact contact = Contact.create(
@@ -42,8 +40,7 @@ public class CreateContactService implements CreateContactUseCase {
                 command.userType(),
                 command.subject(),
                 command.message(),
-                command.userId(),
-                now
+                command.userId()
         );
 
         var savedContact = contactRepositoryPort.save(contact);

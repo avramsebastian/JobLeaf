@@ -2,11 +2,13 @@ package com.seby.jobleaf.infrastructure.persistence.mapper;
 
 import com.seby.jobleaf.domain.model.Company;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
+import com.seby.jobleaf.infrastructure.persistence.entity.JobEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +19,7 @@ class CompanyPersistenceMapperTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new CompanyPersistenceMapper();
+        mapper = new CompanyPersistenceMapper(new JobPersistenceMapper());
     }
 
     @Test
@@ -31,7 +33,7 @@ class CompanyPersistenceMapperTest {
         Instant updatedAt = Instant.parse("2026-01-02T12:00:00Z");
 
         CompanyEntity entity = new CompanyEntity();
-        entity.id = id;
+        entity.setId(id);
         entity.setName("Alpha Solutions");
         entity.setLogo("/logos/alpha.png");
         entity.setIndustry("Consulting");
@@ -42,10 +44,7 @@ class CompanyPersistenceMapperTest {
         entity.setDescription("Expert IT consulting firm.");
         entity.setEmployees(350);
         entity.setWebsite("https://alpha.example");
-        entity.createdAt = createdAt;
-        entity.createdBy = createdBy;
-        entity.updatedAt = updatedAt;
-        entity.updatedBy = updatedBy;
+        entity.restoreAuditFields(createdAt, createdBy, updatedAt, updatedBy);
 
         // When
         Company domain = mapper.toDomain(entity);
@@ -107,7 +106,8 @@ class CompanyPersistenceMapperTest {
                 createdAt,
                 createdBy,
                 updatedAt,
-                updatedBy
+                updatedBy,
+                List.of()
         );
 
         // When
@@ -130,5 +130,28 @@ class CompanyPersistenceMapperTest {
         assertThat(entity.getCreatedBy()).isEqualTo(createdBy);
         assertThat(entity.getUpdatedAt()).isEqualTo(updatedAt);
         assertThat(entity.getUpdatedBy()).isEqualTo(updatedBy);
+    }
+
+    @Test
+    @DisplayName("Should map the company's jobs to domain jobs referencing the company")
+    void toDomain_mapsJobs() {
+        // Given
+        CompanyEntity entity = new CompanyEntity();
+        entity.setId(UUID.randomUUID());
+        JobEntity job = new JobEntity();
+        job.setId(UUID.randomUUID());
+        job.setCompany(entity);
+        job.setTitle("Backend Engineer");
+        entity.getJobs().add(job);
+
+        // When
+        Company domain = mapper.toDomain(entity);
+
+        // Then
+        assertThat(domain.employees()).isNull();
+        assertThat(domain.jobs()).hasSize(1);
+        assertThat(domain.jobs().getFirst().id()).isEqualTo(job.getId());
+        assertThat(domain.jobs().getFirst().companyId()).isEqualTo(entity.getId());
+        assertThat(domain.jobs().getFirst().title()).isEqualTo("Backend Engineer");
     }
 }

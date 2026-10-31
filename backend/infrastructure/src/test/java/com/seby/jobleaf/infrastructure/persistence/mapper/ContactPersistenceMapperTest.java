@@ -28,13 +28,13 @@ class ContactPersistenceMapperTest {
         Instant createdAt = Instant.parse("2026-05-10T11:00:00Z");
 
         ContactEntity entity = new ContactEntity();
-        entity.id = id;
+        entity.setId(id);
         entity.setName("Alice Smith");
         entity.setEmail("alice@example.com");
         entity.setUserType("jobseeker");
         entity.setSubject("Application status");
         entity.setMessage("Can I get an update?");
-        entity.createdAt = createdAt;
+        entity.restoreAuditFields(createdAt, null, null, null);
 
         // When
         Contact domain = mapper.toDomain(entity);

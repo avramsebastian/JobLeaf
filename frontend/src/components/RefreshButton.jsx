@@ -3,14 +3,15 @@ import { useJobsData } from '../contexts/JobsDataContext';
 import { useCompanies } from '../contexts/CompaniesContext';
 
 const RefreshButton = ({ showLabel = true, className = '' }) => {
-  const { forceRefresh: refreshJobs, getCacheAge: getJobsCacheAge, loading: jobsLoading } = useJobsData();
+  const { getCacheAge: getJobsCacheAge, loading: jobsLoading } = useJobsData();
   const { forceRefresh: refreshCompanies, getCacheAge: getCompaniesCacheAge, loading: companiesLoading } = useCompanies();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([refreshJobs(), refreshCompanies()]);
+      // Jobs are derived from companies, so one refresh updates both
+      await refreshCompanies();
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
