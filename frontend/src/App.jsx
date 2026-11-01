@@ -29,9 +29,9 @@ import ContactMessages from "./pages/admin/ContactMessages";
 function App() {
   return (
     <AuthProvider>
-      <JobsDataProvider>
-        <JobProvider>
-          <CompaniesProvider>
+      <CompaniesProvider>
+        <JobsDataProvider>
+          <JobProvider>
             <ThemeProvider>
               <Router>
                 <ScrollToTop />
@@ -138,10 +138,10 @@ function App() {
                 </Route>
               </Routes>
             </Router>
-          </ThemeProvider>
-          </CompaniesProvider>
-        </JobProvider>
-      </JobsDataProvider>
+            </ThemeProvider>
+          </JobProvider>
+        </JobsDataProvider>
+      </CompaniesProvider>
     </AuthProvider>
   );
 }

@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-31-10-05-insert-mock-jobs
+      author: Seby
+      comment: "Insert mock data into jobs table, referencing the mock companies by their UUIDs."
+      changes:
+        - sqlFile:
+            path: 2026-10-31-10-05-insert-mock-jobs.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: false
+      rollback:
+        - delete:
+            tableName: jobs
+            where: "created_by = '00000000-0000-0000-0000-000000000000'"

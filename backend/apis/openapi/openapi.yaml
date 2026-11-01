@@ -17,7 +17,7 @@ tags:
   - name: Company
     description: Companies management endpoints.
   - name: Contact
-    description: Contacts management endpointss.
+    description: Contacts management endpoints.
 
 paths:
   /companies:
@@ -25,7 +25,7 @@ paths:
       tags: [ Company ]
       operationId: listCompanies
       summary: List companies.
-      description: Returns all companies. Accessible by guests and logged-in users.
+      description: Returns all companies together with their jobs. Accessible by guests and logged-in users.
       security: [ ]
       parameters: [ ]
       responses:
@@ -225,8 +225,7 @@ components:
           example: 2010
         description:
           type: string
-          maxLength: 255
-          description: Short description of the company.
+          description: Description of the company.
           example: "DerpCorp Inc. is a leading technology company founded in 2010. We're committed to innovation and creating exceptional experiences for our customers and employees."
         employees:
           type: integer
@@ -238,6 +237,135 @@ components:
           maxLength: 500
           description: Official company website URL.
           example: "https://www.derpcorp.example"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        createdBy:
+          $ref: '#/components/schemas/Uuid'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedBy:
+          $ref: '#/components/schemas/Uuid'
+        jobs:
+          type: array
+          description: Jobs posted by the company.
+          items:
+            $ref: '#/components/schemas/JobResponse'
+
+    JobResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - companyId
+        - title
+        - location
+        - workType
+        - jobType
+        - category
+        - experienceLevel
+        - salaryMin
+        - salaryMax
+        - salaryCurrency
+        - salaryPeriod
+        - description
+        - postedDate
+        - featured
+        - urgent
+        - remote
+        - status
+        - createdBy
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        companyId:
+          $ref: '#/components/schemas/Uuid'
+        title:
+          type: string
+          maxLength: 255
+          description: Job title.
+          example: "Senior Frontend Developer"
+        location:
+          type: string
+          maxLength: 255
+          description: Job location.
+          example: "Nashville, TN"
+        workType:
+          type: string
+          maxLength: 50
+          description: Work arrangement (On-site, Remote, Hybrid).
+          example: "Hybrid"
+        jobType:
+          type: string
+          maxLength: 50
+          description: Employment type (Full-time, Part-time, Contract, Freelance).
+          example: "Full-time"
+        category:
+          type: string
+          maxLength: 100
+          description: Job category (Technology, Design, Marketing, Sales, Finance, Healthcare, Education, Operations).
+          example: "Technology"
+        experienceLevel:
+          type: string
+          maxLength: 50
+          description: Experience level (Entry Level, Mid Level, Senior Level, Executive Level).
+          example: "Mid Level"
+        salaryMin:
+          type: number
+          description: Minimum salary.
+          example: 106000
+        salaryMax:
+          type: number
+          description: Maximum salary.
+          example: 173000
+        salaryCurrency:
+          type: string
+          maxLength: 10
+          description: Salary currency code.
+          example: "USD"
+        salaryPeriod:
+          type: string
+          maxLength: 20
+          description: Salary period.
+          example: "year"
+        description:
+          type: string
+          description: Full job description.
+          example: "We are looking for a skilled Senior Frontend Developer to join our dynamic team."
+        requirements:
+          type: array
+          description: Required skills.
+          items:
+            type: string
+          example: [ "Java", "PostgreSQL" ]
+        benefits:
+          type: array
+          description: Offered benefits.
+          items:
+            type: string
+          example: [ "Health Insurance", "Remote Work" ]
+        postedDate:
+          $ref: '#/components/schemas/DateTime'
+        applicationDeadline:
+          $ref: '#/components/schemas/DateTime'
+        applicationsCount:
+          type: integer
+          format: int32
+          description: Number of applications received.
+          example: 143
+        featured:
+          type: boolean
+          description: Whether the job is featured.
+        urgent:
+          type: boolean
+          description: Whether the job is urgent.
+        remote:
+          type: boolean
+          description: Whether the job can be done remotely.
+        status:
+          type: string
+          maxLength: 20
+          description: Job status (ACTIVE, CLOSED, DRAFT).
+          example: "ACTIVE"
         createdAt:
           $ref: '#/components/schemas/DateTime'
         createdBy:
@@ -285,11 +413,19 @@ components:
         detail:
           type: string
           maxLength: 1000
-          pattern: '^[A-Za-z0-9\s_,.:;()''"/\\!?-]{1,1000}$'
+          description: Human-readable explanation of this occurrence of the problem.
         instance:
           type: string
           maxLength: 200
           pattern: '^[A-Za-z0-9_.:/-]+$'
+          description: Request path that produced the problem.
+        errors:
+          type: object
+          description: Validation messages keyed by field or parameter name. Only present for validation errors.
+          additionalProperties:
+            type: string
+          example:
+            email: "must be a well-formed email address"
 
   responses:
     BadRequest:

@@ -313,7 +313,7 @@ export const JobProvider = ({ children }) => {
 
   const getJobApplications = (jobId) => {
     const globalApplications = JSON.parse(localStorage.getItem('globalApplications') || '[]');
-    return globalApplications.filter(app => app.jobId === parseInt(jobId));
+    return globalApplications.filter(app => String(app.jobId) === String(jobId));
   };
 
   const updateApplicationStatus = (applicationId, status) => {
@@ -341,12 +341,12 @@ export const JobProvider = ({ children }) => {
 
   const getJobByIdSync = (jobId, staticJobs) => {
     // Check static jobs first
-    const staticJob = staticJobs.find(job => job.id === parseInt(jobId));
+    const staticJob = staticJobs.find(job => String(job.id) === String(jobId));
     if (staticJob) return staticJob;
 
     // Check posted jobs
     const globalPostedJobs = JSON.parse(localStorage.getItem('globalPostedJobs') || '[]');
-    return globalPostedJobs.find(job => job.id === parseInt(jobId));
+    return globalPostedJobs.find(job => String(job.id) === String(jobId));
   };
 
   const value = {

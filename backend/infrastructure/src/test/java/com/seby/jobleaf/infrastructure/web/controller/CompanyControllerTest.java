@@ -49,7 +49,8 @@ class CompanyControllerTest {
                 Instant.now(),
                 UUID.randomUUID(),
                 Instant.now(),
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                List.of()
         );
     }
 
