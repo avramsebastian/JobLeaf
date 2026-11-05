@@ -19,7 +19,7 @@ tags:
   - name: Contact
     description: Contacts management endpoints.
   - name: Authentication
-    description: Authentication endpoints (login, JWT).
+    description: Authentication endpoints.
 
 paths:
   /companies/public:
