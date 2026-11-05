@@ -1,5 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.filter;
 
+import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import jakarta.servlet.FilterChain;
@@ -18,7 +19,6 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -34,11 +34,9 @@ import java.util.stream.Collectors;
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     static final String USER_ID_MDC_KEY = "userId";
-    static final String USER_ID_HEADER = "X-User-Id"; // TODO: replace with JWT principal once auth lands
+    static final String USER_ID_SPAN_ATTRIBUTE = "user.id";
     static final String ANONYMOUS = "anonymous";
     static final String MASK = "***";
-    static final int MAX_USER_ID_LENGTH = 64;
-    private static final Pattern SAFE_USER_ID = Pattern.compile("[A-Za-z0-9._@-]+");
     private static final Set<String> SENSITIVE_QUERY_PARAMS = Set.of(
             "token", "access_token", "refresh_token", "id_token", "code", "password", "secret",
             "api_key", "apikey", "key", "email");
@@ -58,11 +56,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         long startNanos = System.nanoTime();
         String method = request.getMethod();
         String query = maskQuery(request.getQueryString());
-        String userId = resolveUserId(request);
 
-        MDC.put(USER_ID_MDC_KEY, userId);
+        MDC.put(USER_ID_MDC_KEY, ANONYMOUS);
         Span span = Span.current();
-        span.setAttribute("user.id", userId);
         Throwable failure = null;
         try {
             log.debug("Incoming request: [{}] {}{}", method, uri, query);
@@ -71,6 +67,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             failure = ex;
             throw ex;
         } finally {
+            String userId = resolveUserId(request);
+            MDC.put(USER_ID_MDC_KEY, userId);
+            span.setAttribute(USER_ID_SPAN_ATTRIBUTE, userId);
             long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
             int status = response.getStatus();
             logCompletion(span, failure, method, uri, query, status, duration);
@@ -99,18 +98,13 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * The header is client-controlled, so only short values made of safe characters are trusted.
+     * @return the id of the user the JWT filter authenticated, or {@value #ANONYMOUS}. Only server-validated data is
+     * used, never a client-supplied header.
      */
-    String resolveUserId(HttpServletRequest request) {
-        String headerValue = request.getHeader(USER_ID_HEADER);
-        if (headerValue == null || headerValue.isBlank()) {
-            return ANONYMOUS;
-        }
-        String trimmed = headerValue.trim();
-        if (trimmed.length() > MAX_USER_ID_LENGTH || !SAFE_USER_ID.matcher(trimmed).matches()) {
-            return ANONYMOUS;
-        }
-        return trimmed;
+    static String resolveUserId(HttpServletRequest request) {
+        return request.getAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE) instanceof AuthenticatedUser user
+                ? user.id().toString()
+                : ANONYMOUS;
     }
 
     /**

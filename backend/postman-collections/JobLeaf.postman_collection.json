@@ -1,0 +1,653 @@
+{
+  "info": {
+    "_postman_id": "b5b74593-3422-53fc-8c32-fd9950e71ed5",
+    "name": "JobLeaf API",
+    "description": "Requests and automatic tests for the JobLeaf backend.\n\nSetup: import 'JobLeaf-Local.postman_environment.json', select it, set jwtSecret to the same value as the backend's JWT_SECRET_KEY. Start PostgreSQL and the backend first.\n\nRun everything at once with 'Run collection' (Collection Runner).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Creates test JWTs signed with the same secret as the backend (JWT_SECRET_KEY), until the login endpoint exists.",
+          "// {{jwt}} = valid, {{jwtExpired}} = expired 1 minute ago, {{jwtTampered}} = valid token with a broken signature.",
+          "const CryptoJS = require('crypto-js');",
+          "",
+          "const secret = pm.variables.get('jwtSecret');",
+          "if (!secret) {",
+          "    console.warn('jwtSecret is empty: select the \"JobLeaf Local\" environment and set jwtSecret to your JWT_SECRET_KEY');",
+          "    return;",
+          "}",
+          "",
+          "const base64Url = (words) => CryptoJS.enc.Base64.stringify(words)",
+          "    .replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');",
+          "const encode = (obj) => base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)));",
+          "",
+          "const buildJwt = (expiresInSeconds) => {",
+          "    const now = Math.floor(Date.now() / 1000);",
+          "    const header = { alg: 'HS256', typ: 'JWT' };",
+          "    const payload = {",
+          "        iss: 'jobleaf',               // the backend only accepts tokens issued by JobLeaf",
+          "        sub: pm.variables.get('tokenUserId'),  // user id: recorded in created_by/updated_by and the logs",
+          "        email: pm.variables.get('tokenEmail'),",
+          "        roles: pm.variables.get('tokenRoles'),",
+          "        iat: now,",
+          "        exp: now + expiresInSeconds",
+          "    };",
+          "    const unsigned = `${encode(header)}.${encode(payload)}`;",
+          "    return `${unsigned}.${base64Url(CryptoJS.HmacSHA256(unsigned, secret))}`;",
+          "};",
+          "",
+          "const jwt = buildJwt(3600);",
+          "pm.variables.set('jwt', jwt);",
+          "pm.variables.set('jwtExpired', buildJwt(-60));",
+          "pm.variables.set('jwtTampered', `${jwt}x`);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/jobleaf"
+    },
+    {
+      "key": "serverUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiAccept",
+      "value": "application/vnd.jobleaf+json;v=1.0"
+    },
+    {
+      "key": "tokenUserId",
+      "value": "6f1c2b7e-3d4a-4e5f-9a8b-1c2d3e4f5a02"
+    },
+    {
+      "key": "tokenEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "tokenRoles",
+      "value": "ROLE_ADMIN"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public endpoints",
+      "description": "No token needed (paths ending in /public).",
+      "item": [
+        {
+          "name": "List companies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "public"
+              ]
+            },
+            "description": "Returns all companies with their jobs. Also shows the security headers in the Headers tab."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns companies with jobs', () => {",
+                  "    const companies = pm.response.json();",
+                  "    pm.expect(companies).to.be.an('array').that.is.not.empty;",
+                  "    pm.expect(companies[0]).to.have.property('jobs');",
+                  "});",
+                  "pm.test('Security headers are present', () => {",
+                  "    ['Content-Security-Policy', 'Referrer-Policy', 'Permissions-Policy', 'X-Content-Type-Options', 'X-Frame-Options']",
+                  "        .forEach(header => pm.expect(pm.response.headers.has(header), header).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "Creates a contact message. Writes a row to the contacts table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Returns the success status', () => pm.expect(pm.response.json().status).to.eql('Request processed successfully!'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - blank name (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "A blank name is rejected by the domain rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Lists the invalid field', () => pm.expect(pm.response.json().errors).to.have.property('name'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - invalid email (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "An invalid email is rejected by request validation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"not-an-email\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Lists the invalid field', () => pm.expect(pm.response.json().errors).to.have.property('email'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Authentication (JWT)",
+      "description": "Secured paths (/jobleaf/** without /public). No secured endpoint exists yet, so a request that passes security answers 404: 401 -> 404 between 'no token' and 'valid token' proves the JWT is accepted.",
+      "item": [
+        {
+          "name": "Secured path - no token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "Without a token the security filter chain rejects the request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"Authentication is required to access this resource\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - valid token (404 = passed security)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "With a valid token the request gets past security; 404 only because no secured endpoint exists here yet."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Request passed security (not 401/403)', () => pm.expect(pm.response.code).to.not.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - expired token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtExpired}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "A token whose exp is in the past."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"The access token has expired, please log in again\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - tampered token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtTampered}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "A valid token with an extra character, so the signature no longer matches."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"The access token is invalid\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login",
+                "public"
+              ]
+            },
+            "description": "Logs in with email and password and saves the returned JWT as {{jwtFromLogin}}. Use 'Bearer {{jwtFromLogin}}' to test with a real login instead of the generated token. Set loginPassword in the environment to the password your BCrypt hash was created from.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"{{loginPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns a JWT and the user', () => {",
+                  "    pm.expect(body.jwtToken).to.be.a('string');",
+                  "    pm.expect(body.user.email).to.eql('admin@example.com');",
+                  "    pm.expect(body.user.role).to.eql('ROLE_ADMIN');",
+                  "});",
+                  "pm.environment.set('jwtFromLogin', body.jwtToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login",
+                "public"
+              ]
+            },
+            "description": "Wrong password: same generic message as an unknown email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"definitely-wrong-password\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"Invalid email or password\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - token from login (404 = passed security)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtFromLogin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "Uses the real token saved by the Login request. Run Login first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Request passed security (not 401/403)', () => pm.expect(pm.response.code).to.not.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Infrastructure",
+      "description": "Operational endpoints outside /jobleaf.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/health",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Health check, open without a token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prometheus metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/prometheus",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "Scraped by Prometheus, open without a token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other actuator endpoint - denied (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/env",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "env"
+              ]
+            },
+            "description": "Everything not explicitly opened is denied (denyAll)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

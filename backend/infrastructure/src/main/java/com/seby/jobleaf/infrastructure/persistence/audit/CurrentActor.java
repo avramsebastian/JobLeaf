@@ -1,7 +1,10 @@
 package com.seby.jobleaf.infrastructure.persistence.audit;
 
 import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import lombok.experimental.UtilityClass;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
@@ -13,10 +16,14 @@ import java.util.UUID;
 public class CurrentActor {
 
     /**
-     * @return the id of the acting user; always the {@link SystemActor} until authentication exists
+     * @return the id of the user logged in with a JWT, or the {@link SystemActor} for anonymous requests
+     * (e.g. the public contact form) and work outside a request
      */
     public static UUID id() {
-        // TODO: resolve the authenticated user from the security context once JWT is added
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+            return user.id();
+        }
         return SystemActor.ID;
     }
 }

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
+import { clearSession, getExpiresAt, getToken, saveSession } from '../utils/authSession';
 
 const AuthContext = createContext();
 
@@ -114,10 +115,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from localStorage on app start
+  // Load user from localStorage on app start (getToken() returns null and clears everything when expired)
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('authToken');
+    const savedToken = getToken();
 
     if (savedUser && savedToken) {
       try {
@@ -127,8 +128,7 @@ export const AuthProvider = ({ children }) => {
         // This fixes old cached data from before the bug was fixed
         if (parsedUser.email && !parsedUser.email.includes('@')) {
           console.warn('[Auth] Detected invalid cached user data. Clearing localStorage...');
-          localStorage.removeItem('user');
-          localStorage.removeItem('authToken');
+          clearSession();
           setIsLoading(false);
           return;
         }
@@ -136,21 +136,36 @@ export const AuthProvider = ({ children }) => {
         setUser(parsedUser);
       } catch (error) {
         console.error('Error loading saved user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
+        clearSession();
       }
+    } else if (savedUser) {
+      console.log('[Auth] Saved session has expired, user must log in again');
+      clearSession();
     }
     setIsLoading(false);
   }, []);
 
-  // Save user to localStorage whenever user changes
+  // Save user to localStorage whenever user changes. Clearing is done by logout, expiry and the 401 handler only:
+  // user is also null on the first render after a reload, and clearing then would delete the token being restored.
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-      localStorage.removeItem('authToken');
     }
+  }, [user]);
+
+  // Log out automatically when the token expires. ProtectedRoute then sends the user to /login.
+  useEffect(() => {
+    const expiresAt = user ? getExpiresAt() : null;
+    if (expiresAt === null) {
+      return undefined;
+    }
+    const logoutAtExpiry = () => {
+      console.log('[Auth] Session expired, logging out');
+      clearSession();
+      setUser(null);
+    };
+    const timeoutId = setTimeout(logoutAtExpiry, Math.max(expiresAt - Date.now(), 0));
+    return () => clearTimeout(timeoutId);
   }, [user]);
 
   const login = async (email, password, userType) => {
@@ -160,21 +175,22 @@ export const AuthProvider = ({ children }) => {
       console.log('[Auth] Attempting login with:', { email, userType });
 
       // Call backend authentication API
+      // Field names match LoginRequest in the OpenAPI spec
       const response = await httpClient.post(API_ENDPOINTS.LOGIN, {
-        username: email,
-        password: password
+        email,
+        password
       });
 
       console.log('[Auth] Login response:', response.data);
 
       if (response.data && response.data.jwtToken) {
-        const { jwtToken, user: userData, message } = response.data;
+        const { jwtToken, expiresAt, user: userData, message } = response.data;
 
-        // Store JWT token in localStorage
-        localStorage.setItem('authToken', jwtToken);
+        // Store the JWT and when the backend stops accepting it
+        saveSession(jwtToken, expiresAt);
 
         // Create user object with role from backend
-        // Backend UserDto contains: userId, name, email, mobileNumber, role
+        // Backend UserResponse contains: userId, name, email, mobileNumber, role
         // Role values from backend: ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN
         const userWithRole = {
           ...userData,
@@ -226,8 +242,9 @@ export const AuthProvider = ({ children }) => {
       console.error('[Auth] Login error:', error);
 
       if (error.response) {
-        // Server responded with error
-        const errorMessage = error.response.data?.message
+        // Server responded with error; the backend sends RFC 9457 problem details, whose message is in "detail"
+        const errorMessage = error.response.data?.detail
+          || error.response.data?.message
           || error.response.data?.error
           || `Authentication failed (${error.response.status})`;
 
@@ -395,8 +412,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    clearSession();
   };
 
   const value = {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import httpClient from "../../config/httpClient";
 import { API_ENDPOINTS } from "../../config/api";
+import { clearSession, getToken } from "../../utils/authSession";
 
 const ContactMessages = () => {
   const { theme } = useTheme();
@@ -32,7 +33,7 @@ const ContactMessages = () => {
       console.log("API Endpoint:", API_ENDPOINTS.ADMIN_CONTACTS);
 
       // Check if user is authenticated
-      const token = localStorage.getItem("authToken");
+      const token = getToken();
       const userStr = localStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
 
@@ -74,8 +75,7 @@ const ContactMessages = () => {
         setError("Authentication failed. Please login again.");
         setMessages([]);
         // Clear invalid token
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("user");
+        clearSession();
         return;
       }
 

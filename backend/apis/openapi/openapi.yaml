@@ -18,14 +18,16 @@ tags:
     description: Companies management endpoints.
   - name: Contact
     description: Contacts management endpoints.
+  - name: Authentication
+    description: Authentication endpoints (login, JWT).
 
 paths:
-  /companies:
+  /companies/public:
     get:
       tags: [ Company ]
       operationId: listCompanies
       summary: List companies.
-      description: Returns all companies together with their jobs. Accessible by guests and logged-in users.
+      description: Returns all companies together with their jobs. Public endpoint, no authentication required.
       security: [ ]
       parameters: [ ]
       responses:
@@ -37,18 +39,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CompanyResponse'
-        "401": { $ref: '#/components/responses/Unauthorized' }
-        "403": { $ref: '#/components/responses/Forbidden' }
         "406": { $ref: '#/components/responses/NotAcceptable' }
         "429": { $ref: '#/components/responses/TooManyRequests' }
         default: { $ref: '#/components/responses/UnexpectedError' }
 
-  /contacts:
+  /contacts/public:
     post:
       tags: [Contact]
       operationId: createContact
       summary: Create contact.
-      description: Creates contact from the contact us page.
+      description: Creates contact from the contact us page. Public endpoint, no authentication required.
       security: [ ]
       parameters: [ ]
       requestBody:
@@ -65,13 +65,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateContactResponse'
         '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
-        '409': {$ref: '#/components/responses/Conflict'}
         '415': {$ref: '#/components/responses/UnsupportedMediaType'}
-        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /auth/login/public:
+    post:
+      tags: [Authentication]
+      operationId: loginUser
+      summary: Login user.
+      description: |
+        Checks the email and password and returns a signed JWT. Send it on later requests as
+        `Authorization: Bearer <jwtToken>` until `expiresAt`.
+      security: [ ]
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401':
+          description: Invalid email or password. The same message is used for both, so callers cannot tell which emails are registered.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -140,6 +170,24 @@ components:
 
     # Requests
 
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 8
+          maxLength: 72
+          description: Plaintext password (hashed server-side; never stored directly).
+          example: "CorrectHorseBatteryStaple"
+
     CreateContactRequest:
       type: object
       additionalProperties: false
@@ -171,6 +219,79 @@ components:
           example: "Employer"
 
     # Responses
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - user
+        - jwtToken
+        - expiresAt
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Status message for the login operation.
+          example: "Login successful"
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        jwtToken:
+          type: string
+          format: jwt
+          minLength: 32
+          maxLength: 2048
+          pattern: '^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$'
+          description: "Signed JWT. Send it as `Authorization: Bearer <jwtToken>`."
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+        expiresAt:
+          $ref: '#/components/schemas/DateTime'
+
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - name
+        - email
+        - role
+        - createdAt
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          minLength: 5
+          maxLength: 254
+          example: "john.doe@company.com"
+        mobileNumber:
+          type: string
+          format: phone
+          minLength: 8
+          maxLength: 16
+          pattern: '^\+[1-9]\d{6,14}$'
+          example: "+12025550143"
+        role:
+          type: string
+          enum: [ ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN ]
+          description: Role of the user, as used by Spring Security and the frontend.
+          example: "ROLE_JOB_SEEKER"
+        companyId:
+          $ref: '#/components/schemas/Uuid'
+        companyName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: "Acme Corp"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
 
     CompanyResponse:
       type: object
@@ -429,19 +550,19 @@ components:
 
   responses:
     BadRequest:
-      description: Bad Request
+      description: Bad Request. Malformed body or invalid fields; validation messages are listed in `errors`.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
     Unauthorized:
-      description: Unauthorized
+      description: Unauthorized. The endpoint requires a Bearer JWT and none (or an invalid one) was sent.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
     Forbidden:
-      description: Forbidden
+      description: Forbidden. The caller is authenticated but not allowed to perform this operation.
       content:
         application/problem+json:
           schema:

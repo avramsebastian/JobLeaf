@@ -1,6 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { API_BASE_URL } from "./api";
+import { clearSession, getToken } from "../utils/authSession";
 
 /**
  * Default API Accept Header
@@ -27,10 +28,10 @@ const httpClient = axios.create({
  * These endpoints will not include the Authorization header
  */
 const PUBLIC_ENDPOINTS = [
-  "/auth/login",
-  "/auth/register",
-  "/companies",
-  "/contacts",
+  "/auth/login/public",
+  "/auth/register/public",
+  "/companies/public",
+  "/contacts/public",
 ];
 
 /**
@@ -60,9 +61,9 @@ httpClient.interceptors.request.use(
 
     config.headers.Accept = DEFAULT_ACCEPT_HEADER;
 
-    // Add authentication token for non-public endpoints
+    // Add authentication token for non-public endpoints (getToken() returns null once the token has expired)
     if (!isPublicEndpoint(config.url)) {
-      const token = localStorage.getItem("authToken");
+      const token = getToken();
       if (token) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }
@@ -76,7 +77,7 @@ httpClient.interceptors.request.use(
       // If CSRF token is not present in cookies, fetch it from the server
       if (!csrfToken) {
         try {
-          await axios.get(`${API_BASE_URL}/csrf-token`, {
+          await axios.get(`${API_BASE_URL}/csrf-token/public`, {
             withCredentials: true,
           });
           csrfToken = Cookies.get("XSRF-TOKEN");
@@ -85,13 +86,9 @@ httpClient.interceptors.request.use(
             throw new Error("Failed to retrieve CSRF token from cookies");
           }
         } catch (error) {
-          // Ignore 404 errors (endpoint might not be available) and continue
-          if (error.response && error.response.status === 404) {
-            console.warn("[CSRF Token] Endpoint not found (404), continuing without CSRF token");
-          } else {
-            console.error("[CSRF Token Error]", error);
-            return Promise.reject(error);
-          }
+          // The backend does not use CSRF tokens yet (JWT in the Authorization header), so a failed token fetch
+          // must not cancel the real request. If CSRF is enabled later, the backend rejects the request itself (403).
+          console.warn("[CSRF Token] Could not fetch a CSRF token, continuing without it", error.response?.status);
         }
       }
 
@@ -151,14 +148,12 @@ httpClient.interceptors.response.use(
 
           if (!isLoginRequest && !isOnLoginPage) {
             // Unauthorized - clear token and user data, then redirect to login
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("user");
+            clearSession();
             window.location.href = "/login";
           } else {
             // If it's a login request or we're on login page, just clear token
             // but don't redirect (let the component handle the error)
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("user");
+            clearSession();
           }
           break;
         case 403:

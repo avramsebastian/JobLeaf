@@ -22,7 +22,7 @@ export const getAcceptHeader = (version = DEFAULT_API_VERSION) =>
 // API Endpoints
 export const API_ENDPOINTS = {
   // Company endpoints
-  COMPANIES: "/companies",
+  COMPANIES: "/companies/public",
   COMPANY_BY_ID: (id) => `/companies/${id}`,
 
   // Job endpoints (placeholder for future use)
@@ -30,8 +30,8 @@ export const API_ENDPOINTS = {
   JOB_BY_ID: (id) => `/jobs/${id}`,
 
   // Auth endpoints (placeholder for future use)
-  LOGIN: "/auth/login",
-  REGISTER: "/auth/register",
+  LOGIN: "/auth/login/public",
+  REGISTER: "/auth/register/public",
   LOGOUT: "/auth/logout",
 
   // User endpoints
@@ -39,7 +39,7 @@ export const API_ENDPOINTS = {
   UPDATE_PROFILE: "/profile",
 
   // Contact endpoints
-  CONTACTS: "/contacts",
+  CONTACTS: "/contacts/public",
   CONTACT_BY_ID: (id) => `/contacts/${id}`,
   ADMIN_CONTACTS: "/admin/contacts",
   ADMIN_CONTACTS_SORT: "/admin/contacts/sort",
@@ -47,7 +47,7 @@ export const API_ENDPOINTS = {
   UPDATE_CONTACT_STATUS: (id) => `/admin/contacts/${id}/status`,
 
   // CSRF token endpoint
-  CSRF_TOKEN: "/csrf-token",
+  CSRF_TOKEN: "/csrf-token/public",
 
   // Admin User Management endpoints
   SEARCH_USER_BY_EMAIL: "/admin/users/search",
