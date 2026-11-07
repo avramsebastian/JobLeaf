@@ -1,7 +1,9 @@
 package com.seby.jobleaf.infrastructure.web.security.jwt;
 
 import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.UserAccount;
+import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.infrastructure.web.security.AccessTokenCookies;
 import com.seby.jobleaf.infrastructure.web.security.filter.JwtTokenValidatorFilter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -36,8 +38,8 @@ class JwtTokenIssuerAdapterTest {
 
     private static final SecretKey KEY = Keys.hmacShaKeyFor(
             "test-secret-key-for-unit-tests-only-0123456789".getBytes(StandardCharsets.UTF_8));
-    private static final UserAccount USER = new UserAccount(UUID.randomUUID(), "Admin", "admin@example.com", null,
-            "ROLE_ADMIN", null, null, Instant.parse("2026-11-03T00:00:00Z"));
+    private static final JobLeafUser USER = new JobLeafUser(UUID.randomUUID(), "Admin", "admin@example.com", null,
+            RoleName.ROLE_ADMIN, null, null, Instant.parse("2026-11-03T00:00:00Z"));
 
     @AfterEach
     void tearDown() {
@@ -61,6 +63,8 @@ class JwtTokenIssuerAdapterTest {
         assertThat(claims.getIssuer()).isEqualTo("jobleaf");
         assertThat(claims.getSubject()).isEqualTo(USER.id().toString());
         assertThat(claims.get("email", String.class)).isEqualTo("admin@example.com");
+        assertThat(claims.get("name", String.class)).isEqualTo("Admin");
+        assertThat(claims).as("a user without a mobile number has no mobileNumber claim").doesNotContainKey("mobileNumber");
         assertThat(claims.get("roles", String.class)).isEqualTo("ROLE_ADMIN");
         assertThat(claims.getIssuedAt().toInstant()).isEqualTo(now);
         assertThat(claims.getExpiration().toInstant()).isEqualTo(token.expiresAt());
@@ -72,7 +76,7 @@ class JwtTokenIssuerAdapterTest {
         // Given
         AuthToken token = new JwtTokenIssuerAdapter(KEY, Duration.ofHours(1)).issue(USER);
         AuthenticationEntryPoint entryPoint = mock(AuthenticationEntryPoint.class);
-        var filter = new JwtTokenValidatorFilter("Authorization", KEY, List.of(), entryPoint);
+        var filter = new JwtTokenValidatorFilter("Authorization", KEY, List.of(), entryPoint, new AccessTokenCookies("JOBLEAF_ACCESS_TOKEN", true));
         var request = new MockHttpServletRequest("GET", "/jobleaf/companies");
         request.addHeader("Authorization", "Bearer " + token.value());
 

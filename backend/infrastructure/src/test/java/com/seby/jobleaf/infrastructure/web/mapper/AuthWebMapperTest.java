@@ -4,7 +4,8 @@ import com.seby.jobleaf.apis.generated.model.LoginRequest;
 import com.seby.jobleaf.apis.generated.model.LoginResponse;
 import com.seby.jobleaf.apis.generated.model.UserResponse;
 import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.UserAccount;
+import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.RoleName;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginCommand;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginResult;
 import org.junit.jupiter.api.DisplayName;
@@ -41,15 +42,14 @@ class AuthWebMapperTest {
         UUID companyId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-11-03T00:00:00Z");
         Instant expiresAt = Instant.parse("2026-11-03T13:00:00Z");
-        UserAccount user = new UserAccount(userId, "John Smith", "john@company.com", "+12025550143",
-                "ROLE_EMPLOYER", companyId, "Acme Corp", createdAt);
+        JobLeafUser user = new JobLeafUser(userId, "John Smith", "john@company.com", "+12025550143",
+                RoleName.ROLE_EMPLOYER, companyId, "Acme Corp", createdAt);
 
         // When
         LoginResponse response = mapper.toLoginResponse(new LoginResult(user, new AuthToken("jwt-value", expiresAt)));
 
         // Then
         assertThat(response.getMessage()).isEqualTo("Login successful");
-        assertThat(response.getJwtToken()).isEqualTo("jwt-value");
         assertThat(response.getExpiresAt()).isEqualTo(expiresAt.atOffset(ZoneOffset.UTC));
         UserResponse userResponse = response.getUser();
         assertThat(userResponse.getUserId()).isEqualTo(userId);

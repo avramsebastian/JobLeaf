@@ -32,7 +32,7 @@ export const API_ENDPOINTS = {
   // Auth endpoints (placeholder for future use)
   LOGIN: "/auth/login/public",
   REGISTER: "/auth/register/public",
-  LOGOUT: "/auth/logout",
+  LOGOUT: "/auth/logout/public",
 
   // User endpoints
   PROFILE: "/profile",

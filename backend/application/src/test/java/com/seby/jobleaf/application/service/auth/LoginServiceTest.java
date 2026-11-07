@@ -2,12 +2,13 @@ package com.seby.jobleaf.application.service.auth;
 
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.UserAccount;
+import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.RoleName;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginCommand;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginResult;
 import com.seby.jobleaf.domain.port.out.auth.CredentialsVerifierPort;
 import com.seby.jobleaf.domain.port.out.auth.TokenIssuerPort;
-import com.seby.jobleaf.domain.port.out.auth.UserAccountPort;
+import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +35,7 @@ class LoginServiceTest {
     private CredentialsVerifierPort credentialsVerifierPort;
 
     @Mock
-    private UserAccountPort userAccountPort;
+    private UserRepositoryPort userRepositoryPort;
 
     @Mock
     private TokenIssuerPort tokenIssuerPort;
@@ -43,15 +44,15 @@ class LoginServiceTest {
     private LoginService loginService;
 
     private static final LoginCommand COMMAND = new LoginCommand("admin@example.com", "secret123");
-    private static final UserAccount USER = new UserAccount(UUID.randomUUID(), "Admin", "admin@example.com", null,
-            "ROLE_ADMIN", null, null, Instant.parse("2026-11-03T00:00:00Z"));
+    private static final JobLeafUser USER = new JobLeafUser(UUID.randomUUID(), "Admin", "admin@example.com", null,
+            RoleName.ROLE_ADMIN, null, null, Instant.parse("2026-11-03T00:00:00Z"));
 
     @Test
     @DisplayName("Should verify the credentials, load the account and return it with a new token")
     void login_withValidCredentials_returnsUserAndToken() {
         // Given
         AuthToken token = new AuthToken("jwt-value", Instant.now().plusSeconds(3600));
-        when(userAccountPort.findByEmail("admin@example.com")).thenReturn(Optional.of(USER));
+        when(userRepositoryPort.findByEmail("admin@example.com")).thenReturn(Optional.of(USER));
         when(tokenIssuerPort.issue(USER)).thenReturn(token);
 
         // When
@@ -73,14 +74,14 @@ class LoginServiceTest {
         assertThatThrownBy(() -> loginService.login(COMMAND))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid email or password");
-        verifyNoInteractions(userAccountPort, tokenIssuerPort);
+        verifyNoInteractions(userRepositoryPort, tokenIssuerPort);
     }
 
     @Test
     @DisplayName("Should answer like wrong credentials when the account is missing, and issue no token")
     void login_whenAccountIsMissing_throwsInvalidCredentials() {
         // Given
-        when(userAccountPort.findByEmail("admin@example.com")).thenReturn(Optional.empty());
+        when(userRepositoryPort.findByEmail("admin@example.com")).thenReturn(Optional.empty());
 
         // When / Then
         assertThatThrownBy(() -> loginService.login(COMMAND)).isInstanceOf(InvalidCredentialsException.class);
@@ -91,6 +92,6 @@ class LoginServiceTest {
     @DisplayName("Should reject a null command")
     void login_whenCommandIsNull_throws() {
         assertThatThrownBy(() -> loginService.login(null)).isInstanceOf(NullPointerException.class);
-        verifyNoInteractions(credentialsVerifierPort, userAccountPort, tokenIssuerPort);
+        verifyNoInteractions(credentialsVerifierPort, userRepositoryPort, tokenIssuerPort);
     }
 }

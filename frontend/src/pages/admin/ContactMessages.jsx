@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import httpClient from "../../config/httpClient";
 import { API_ENDPOINTS } from "../../config/api";
-import { clearSession, getToken } from "../../utils/authSession";
+import { clearSession, isSessionExpired } from "../../utils/authSession";
 
 const ContactMessages = () => {
   const { theme } = useTheme();
@@ -32,21 +32,9 @@ const ContactMessages = () => {
       console.log("Starting fetchMessages...");
       console.log("API Endpoint:", API_ENDPOINTS.ADMIN_CONTACTS);
 
-      // Check if user is authenticated
-      const token = getToken();
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-
-      console.log("Auth token exists:", !!token);
-      console.log(
-        "Auth token value:",
-        token ? token.substring(0, 20) + "..." : "null"
-      );
-      console.log("User string:", userStr);
-      console.log("User object:", user);
-
-      if (!token) {
-        console.error("No auth token found - user needs to login");
+      // Check if the session is still valid (the token itself is an HttpOnly cookie the page cannot read)
+      if (isSessionExpired()) {
+        console.error("Session expired - user needs to login");
         setError("You are not authenticated. Please login again.");
         setMessages([]);
         setIsLoading(false);

@@ -1,7 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
 import com.seby.jobleaf.domain.port.in.company.ReadCompanyUseCase;
-import com.seby.jobleaf.infrastructure.persistence.adapter.InMemoryUserAccountAdapter;
 import com.seby.jobleaf.infrastructure.web.controller.CompanyController;
 import com.seby.jobleaf.infrastructure.web.mapper.CompanyWebMapper;
 import io.jsonwebtoken.Jwts;
@@ -29,13 +28,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Runs requests through the real security filter chain (no database) to check access rules and security headers.
  */
 @WebMvcTest(CompanyController.class)
-@Import({JobLeafSecurityConfig.class, PathsConfig.class, ProblemDetailSecurityHandler.class, InMemoryUserAccountAdapter.class})
+@Import({JobLeafSecurityConfig.class, PathsConfig.class, ProblemDetailSecurityHandler.class, AccessTokenCookies.class})
 class SecurityHeadersTest {
 
     private static final String API_ACCEPT = "application/vnd.jobleaf+json;v=1.0";
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** Needed by the AuthenticationManager bean; the login itself is not exercised here. */
+    @MockitoBean
+    private JobLeafEmailPwdAuthenticationProvider authenticationProvider;
 
     @MockitoBean
     private ReadCompanyUseCase readCompanyUseCase;
@@ -109,6 +112,19 @@ class SecurityHeadersTest {
                         .header("Authorization", "Bearer " + token(Instant.now().plusSeconds(600)) + "x"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("The access token is invalid"));
+    }
+
+    @Test
+    @DisplayName("Should not delete the CSRF cookie on authenticated requests (stateless: no per-request rotation)")
+    void authenticatedRequest_keepsCsrfCookie() throws Exception {
+        when(readCompanyUseCase.listAllCompanies()).thenReturn(List.of());
+        when(companyWebMapper.toListCompaniesResponse(List.of())).thenReturn(List.of());
+
+        mockMvc.perform(get("/jobleaf/companies/public").accept(API_ACCEPT)
+                        .cookie(new jakarta.servlet.http.Cookie("JOBLEAF_ACCESS_TOKEN", token(Instant.now().plusSeconds(600))),
+                                new jakarta.servlet.http.Cookie("XSRF-TOKEN", "csrf-value")))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Set-Cookie"));
     }
 
     @Test

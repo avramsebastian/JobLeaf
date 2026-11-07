@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * Secondary adapter that implements {@link CredentialsVerifierPort} with Spring Security's
  * {@link AuthenticationManager}: it loads the user through the {@code UserDetailsService} and compares the password
- * with the stored BCrypt hash.
+ * with the stored Bcrypt hash.
  */
 @Component
 @RequiredArgsConstructor

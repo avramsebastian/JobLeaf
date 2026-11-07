@@ -1,7 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { API_BASE_URL } from "./api";
-import { clearSession, getToken } from "../utils/authSession";
+import { clearSession } from "../utils/authSession";
 
 /**
  * Default API Accept Header
@@ -18,37 +18,11 @@ const httpClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    "Content-Type": "application/json",
+    // Request bodies use the same versioned media type the API accepts (application/json is rejected with 415)
+    "Content-Type": DEFAULT_ACCEPT_HEADER,
   },
   withCredentials: true, // Required for CSRF cookie handling
 });
-
-/**
- * Public endpoints that don't require authentication
- * These endpoints will not include the Authorization header
- */
-const PUBLIC_ENDPOINTS = [
-  "/auth/login/public",
-  "/auth/register/public",
-  "/companies/public",
-  "/contacts/public",
-];
-
-/**
- * Check if the request URL is a public endpoint
- * Note: We need to check exact matches to avoid false positives
- * For example, /admin/contacts should not match /contacts
- */
-const isPublicEndpoint = (url) => {
-  return PUBLIC_ENDPOINTS.some((endpoint) => {
-    // Check if URL exactly matches or starts with the endpoint followed by a slash or query param
-    return (
-      url === endpoint ||
-      url.startsWith(endpoint + "/") ||
-      url.startsWith(endpoint + "?")
-    );
-  });
-};
 
 /**
  * Request Interceptor
@@ -61,13 +35,8 @@ httpClient.interceptors.request.use(
 
     config.headers.Accept = DEFAULT_ACCEPT_HEADER;
 
-    // Add authentication token for non-public endpoints (getToken() returns null once the token has expired)
-    if (!isPublicEndpoint(config.url)) {
-      const token = getToken();
-      if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
-      }
-    }
+    // No Authorization header: the JWT is in an HttpOnly cookie that the browser sends by itself
+    // (withCredentials: true), on public endpoints too, so the backend always knows who made the request.
 
     // Handle CSRF token for non-safe HTTP methods
     const safeMethods = ["GET", "HEAD", "OPTIONS"];

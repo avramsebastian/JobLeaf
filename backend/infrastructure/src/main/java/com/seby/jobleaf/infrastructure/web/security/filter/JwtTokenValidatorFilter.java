@@ -1,5 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.security.filter;
 
+import com.seby.jobleaf.infrastructure.web.security.AccessTokenCookies;
 import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import com.seby.jobleaf.infrastructure.web.security.jwt.JwtClaimNames;
 import io.jsonwebtoken.Claims;
@@ -25,12 +26,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Reads {@code Authorization: Bearer <jwt>}, verifies the signature and expiry, and puts the user into the
+ * Reads the JWT from the {@code Authorization: Bearer <jwt>} header (API clients, Postman) or, when there is no such
+ * header, from the HttpOnly access-token cookie (the browser), verifies the signature and expiry, and puts the user into the
  * {@code SecurityContext}. Requests without a Bearer token pass through as anonymous, so the authorization rules
- * decide whether they are allowed.
+ * decide whether they are allowed. Tokens are read on public paths too, so a logged-in user is known everywhere.
  * <p>
  * Created with {@code new} in the security config on purpose: as a Spring bean it would also be registered as a
  * regular servlet filter and run twice.
@@ -46,20 +49,23 @@ public class JwtTokenValidatorFilter extends OncePerRequestFilter {
     private final SecretKey signingKey;
     private final List<String> publicPaths;
     private final AuthenticationEntryPoint authenticationEntryPoint;
+    private final AccessTokenCookies accessTokenCookies;
 
     public JwtTokenValidatorFilter(String headerName, SecretKey signingKey, List<String> publicPaths,
-                                   AuthenticationEntryPoint authenticationEntryPoint) {
+                                   AuthenticationEntryPoint authenticationEntryPoint,
+                                   AccessTokenCookies accessTokenCookies) {
         this.headerName = headerName;
         this.signingKey = signingKey;
         this.publicPaths = publicPaths;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessTokenCookies = accessTokenCookies;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String authHeader = request.getHeader(headerName);
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+        Optional<String> jwt = extractToken(request);
+        if (jwt.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -69,19 +75,46 @@ public class JwtTokenValidatorFilter extends OncePerRequestFilter {
                     .verifyWith(signingKey)
                     .requireIssuer(JwtClaimNames.ISSUER)
                     .build()
-                    .parseSignedClaims(authHeader.substring(BEARER_PREFIX.length()).trim())
+                    .parseSignedClaims(jwt.get())
                     .getPayload();
 
             authenticate(request, claims);
         } catch (ExpiredJwtException exception) {
-            reject(request, response, new CredentialsExpiredException("JWT expired", exception));
+            handleInvalidToken(request, response, filterChain, new CredentialsExpiredException("JWT expired", exception));
             return;
         } catch (JwtException | IllegalArgumentException exception) {
             log.debug("Rejected JWT: {}", exception.getMessage());
-            reject(request, response, new BadCredentialsException("Invalid JWT", exception));
+            handleInvalidToken(request, response, filterChain, new BadCredentialsException("Invalid JWT", exception));
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Public paths use optional authentication: a valid token identifies the user (for auditing and logs), but an
+     * expired or broken one must not break a public page, so the request simply continues anonymously.
+     * Secured paths answer 401.
+     */
+    private void handleInvalidToken(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain,
+                                    AuthenticationException exception) throws IOException, ServletException {
+        SecurityContextHolder.clearContext();
+        if (isPublicPath(request)) {
+            log.debug("Ignoring invalid JWT on public path {}: {}", request.getRequestURI(), exception.getMessage());
+            filterChain.doFilter(request, response);
+            return;
+        }
+        reject(request, response, exception);
+    }
+
+    /**
+     * The header wins when both are present, so an API client can explicitly choose which token to use.
+     */
+    private Optional<String> extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader(headerName);
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            return Optional.of(authHeader.substring(BEARER_PREFIX.length()).trim());
+        }
+        return accessTokenCookies.read(request);
     }
 
     private void authenticate(HttpServletRequest request, Claims claims) {
@@ -111,12 +144,10 @@ public class JwtTokenValidatorFilter extends OncePerRequestFilter {
      */
     private void reject(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
             throws IOException, ServletException {
-        SecurityContextHolder.clearContext();
         authenticationEntryPoint.commence(request, response, exception);
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
+    private boolean isPublicPath(HttpServletRequest request) {
         String path = request.getRequestURI();
         return publicPaths.stream().anyMatch(publicPath -> pathMatcher.match(publicPath, path));
     }

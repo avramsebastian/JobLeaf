@@ -1,5 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.security.filter;
 
+import com.seby.jobleaf.infrastructure.web.security.AccessTokenCookies;
 import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -51,7 +52,8 @@ class JwtTokenValidatorFilterTest {
     @BeforeEach
     void setUp() {
         entryPoint = mock(AuthenticationEntryPoint.class);
-        filter = new JwtTokenValidatorFilter("Authorization", KEY, List.of("/jobleaf/companies/public"), entryPoint);
+        filter = new JwtTokenValidatorFilter("Authorization", KEY, List.of("/jobleaf/companies/public"), entryPoint,
+                new AccessTokenCookies("JOBLEAF_ACCESS_TOKEN", true));
         request = new MockHttpServletRequest("GET", "/jobleaf/companies");
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
@@ -114,6 +116,28 @@ class JwtTokenValidatorFilterTest {
         filter.doFilter(request, response, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should authenticate a browser request that carries the token in the HttpOnly cookie")
+    void tokenInCookie_authenticatesUser() throws Exception {
+        request.setCookies(new jakarta.servlet.http.Cookie("JOBLEAF_ACCESS_TOKEN", validToken()));
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .isEqualTo(new AuthenticatedUser(USER_ID, "admin@example.com"));
+        assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should reject a tampered token in the cookie on a secured path")
+    void tamperedTokenInCookie_isRejected() throws Exception {
+        request.setCookies(new jakarta.servlet.http.Cookie("JOBLEAF_ACCESS_TOKEN", validToken() + "x"));
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(rejection()).isInstanceOf(BadCredentialsException.class);
     }
 
     @Test
@@ -195,14 +219,43 @@ class JwtTokenValidatorFilterTest {
     }
 
     @Test
-    @DisplayName("Should skip public paths entirely")
-    void publicPath_isNotFiltered() throws Exception {
+    @DisplayName("Should identify the user on a public path when the token is valid")
+    void publicPath_withValidToken_authenticatesUser() throws Exception {
+        MockHttpServletRequest publicRequest = new MockHttpServletRequest("GET", "/jobleaf/companies/public");
+        publicRequest.addHeader("Authorization", "Bearer " + validToken());
+
+        filter.doFilter(publicRequest, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .isEqualTo(new AuthenticatedUser(USER_ID, "admin@example.com"));
+        assertThat(MDC.get("userId")).isEqualTo(USER_ID.toString());
+    }
+
+    @Test
+    @DisplayName("Should ignore a broken token on a public path and continue anonymously instead of answering 401")
+    void publicPath_withInvalidToken_continuesAnonymously() throws Exception {
         MockHttpServletRequest publicRequest = new MockHttpServletRequest("GET", "/jobleaf/companies/public");
         publicRequest.addHeader("Authorization", "Bearer not-a-jwt");
 
         filter.doFilter(publicRequest, response, chain);
 
         assertThat(chain.getRequest()).isNotNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(entryPoint, never()).commence(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should ignore an expired token on a public path, so a stale login cannot break public pages")
+    void publicPath_withExpiredToken_continuesAnonymously() throws Exception {
+        MockHttpServletRequest publicRequest = new MockHttpServletRequest("GET", "/jobleaf/companies/public");
+        publicRequest.addHeader("Authorization",
+                "Bearer " + token(KEY, "admin@example.com", "ROLE_ADMIN", Instant.now().minusSeconds(60)));
+
+        filter.doFilter(publicRequest, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(entryPoint, never()).commence(any(), any(), any());
     }
 

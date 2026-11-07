@@ -1,0 +1,305 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-07-10-00-create-roles-table
+      author: Seby
+      comment: "Creates the roles table and its Envers audit table."
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_roles_name
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - createTable:
+            tableName: roles_aud
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rev
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revtype
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(50)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_by
+                  type: UUID
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - addPrimaryKey:
+            tableName: roles_aud
+            columnNames: id, rev
+            constraintName: pk_roles_aud
+        - addForeignKeyConstraint:
+            baseTableName: roles_aud
+            baseColumnNames: rev
+            referencedTableName: revinfo
+            referencedColumnNames: rev
+            constraintName: fk_roles_aud_revinfo
+      rollback:
+        - dropTable:
+            tableName: roles_aud
+        - dropTable:
+            tableName: roles
+
+  - changeSet:
+      id: 2026-11-07-10-01-insert-roles
+      author: Seby
+      comment: "Inserts the three roles. The names match Spring Security authorities and the frontend."
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  value: "3a8f2c10-6b1e-4d2a-9c3f-0e1d2c3b4a01"
+              - column:
+                  name: name
+                  value: "ROLE_JOB_SEEKER"
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: created_by
+                  value: "00000000-0000-0000-0000-000000000001"
+              - column:
+                  name: updated_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_by
+                  value: "00000000-0000-0000-0000-000000000001"
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  value: "3a8f2c10-6b1e-4d2a-9c3f-0e1d2c3b4a02"
+              - column:
+                  name: name
+                  value: "ROLE_EMPLOYER"
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: created_by
+                  value: "00000000-0000-0000-0000-000000000001"
+              - column:
+                  name: updated_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_by
+                  value: "00000000-0000-0000-0000-000000000001"
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  value: "3a8f2c10-6b1e-4d2a-9c3f-0e1d2c3b4a03"
+              - column:
+                  name: name
+                  value: "ROLE_ADMIN"
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: created_by
+                  value: "00000000-0000-0000-0000-000000000001"
+              - column:
+                  name: updated_at
+                  valueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_by
+                  value: "00000000-0000-0000-0000-000000000001"
+      rollback:
+        - delete:
+            tableName: roles
+            where: "name IN ('ROLE_JOB_SEEKER', 'ROLE_EMPLOYER', 'ROLE_ADMIN')"
+
+  - changeSet:
+      id: 2026-11-07-10-02-create-users-table
+      author: Seby
+      comment: "Creates the users table and its Envers audit table. users_aud has no password_hash on purpose: old hashes are not kept in the history."
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+                  remarks: "Stored lower-case, so uniqueness is case-insensitive"
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_users_email
+              - column:
+                  name: password_hash
+                  type: VARCHAR(500)
+                  remarks: "BCrypt hash, never the plain password"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: mobile_number
+                  type: VARCHAR(20)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_users_mobile_number
+              - column:
+                  name: role_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_users_role
+                    references: roles(id)
+              - column:
+                  name: company_id
+                  type: UUID
+                  remarks: "Company of an employer; set to NULL if the company is deleted"
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - addForeignKeyConstraint:
+            baseTableName: users
+            baseColumnNames: company_id
+            referencedTableName: companies
+            referencedColumnNames: id
+            constraintName: fk_users_company
+            onDelete: SET NULL
+        - createIndex:
+            tableName: users
+            indexName: idx_users_role_id
+            columns:
+              - column:
+                  name: role_id
+        - createIndex:
+            tableName: users
+            indexName: idx_users_company_id
+            columns:
+              - column:
+                  name: company_id
+        - createTable:
+            tableName: users_aud
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rev
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revtype
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+              - column:
+                  name: mobile_number
+                  type: VARCHAR(20)
+              - column:
+                  name: role_id
+                  type: UUID
+              - column:
+                  name: company_id
+                  type: UUID
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_by
+                  type: UUID
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - addPrimaryKey:
+            tableName: users_aud
+            columnNames: id, rev
+            constraintName: pk_users_aud
+        - addForeignKeyConstraint:
+            baseTableName: users_aud
+            baseColumnNames: rev
+            referencedTableName: revinfo
+            referencedColumnNames: rev
+            constraintName: fk_users_aud_revinfo
+      rollback:
+        - dropTable:
+            tableName: users_aud
+        - dropTable:
+            tableName: users

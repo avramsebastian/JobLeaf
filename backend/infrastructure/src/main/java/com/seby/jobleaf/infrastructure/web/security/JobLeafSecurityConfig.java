@@ -9,15 +9,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.password.HaveIBeenPwnedRestApiPasswordChecker;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -63,10 +66,12 @@ public class JobLeafSecurityConfig {
                                                   @Qualifier("infrastructurePaths") List<String> infrastructurePaths,
                                                   ProblemDetailSecurityHandler problemDetailSecurityHandler,
                                                   SecretKey jwtSigningKey,
+                                                  AccessTokenCookies accessTokenCookies,
                                                   @Value("${jobleaf.jwt.header:Authorization}") String jwtHeader) {
-        // The JWT travels in the Authorization header, which browsers never attach on their own, so CSRF does not
-        // apply. TODO: enable CSRF if the token is ever moved into a cookie
-        return http.csrf(AbstractHttpConfigurer::disable)
+        return http.csrf(csrfConfig -> csrfConfig
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
                 .cors(corsConfig -> corsConfig.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> {
@@ -82,7 +87,7 @@ public class JobLeafSecurityConfig {
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .permissionsPolicyHeader(permissions -> permissions.policy(PERMISSIONS_POLICY)))
                 .addFilterBefore(new JwtTokenValidatorFilter(jwtHeader, jwtSigningKey, publicPaths,
-                        problemDetailSecurityHandler), BasicAuthenticationFilter.class)
+                        problemDetailSecurityHandler, accessTokenCookies), BasicAuthenticationFilter.class)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exceptions -> exceptions
@@ -106,19 +111,20 @@ public class JobLeafSecurityConfig {
     }
 
     /**
-     * Checks email + password for the login: loads the user through the {@link UserDetailsService}
-     * (today {@code InMemoryUserAccountAdapter}, later the users table) and compares the BCrypt hash.
+     * Checks email + password for the login with JobLeaf's own provider, which reads the {@code users} table.
      */
     @Bean
-    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
-                                                       PasswordEncoder passwordEncoder) {
-        var authenticationProvider = new DaoAuthenticationProvider(userDetailsService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder);
+    public AuthenticationManager authenticationManager(JobLeafEmailPwdAuthenticationProvider authenticationProvider) {
         return new ProviderManager(authenticationProvider);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CompromisedPasswordChecker compromisedPasswordChecker() {
+        return new HaveIBeenPwnedRestApiPasswordChecker();
     }
 }

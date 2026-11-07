@@ -2,11 +2,11 @@ package com.seby.jobleaf.application.service.auth;
 
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.UserAccount;
+import com.seby.jobleaf.domain.model.JobLeafUser;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase;
 import com.seby.jobleaf.domain.port.out.auth.CredentialsVerifierPort;
 import com.seby.jobleaf.domain.port.out.auth.TokenIssuerPort;
-import com.seby.jobleaf.domain.port.out.auth.UserAccountPort;
+import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +24,7 @@ public class LoginService implements LoginUseCase {
     private static final Logger log = LoggerFactory.getLogger(LoginService.class);
 
     private final CredentialsVerifierPort credentialsVerifierPort;
-    private final UserAccountPort userAccountPort;
+    private final UserRepositoryPort userRepositoryPort;
     private final TokenIssuerPort tokenIssuerPort;
 
     /**
@@ -41,7 +41,7 @@ public class LoginService implements LoginUseCase {
             throw exception;
         }
 
-        UserAccount user = userAccountPort.findByEmail(command.email())
+        JobLeafUser user = userRepositoryPort.findByEmail(command.email())
                 .orElseThrow(() -> {
                     log.error("Credentials accepted for {} but no user account exists", command.email());
                     return new InvalidCredentialsException();

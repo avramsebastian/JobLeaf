@@ -11,6 +11,26 @@
       "script": {
         "type": "text/javascript",
         "exec": [
+          "// CSRF (double submit): every POST/PUT/PATCH/DELETE needs the XSRF-TOKEN cookie and the same value in the",
+          "// X-XSRF-TOKEN header. Get a fresh token first, then add both to the request.",
+          "// Requests with the header \"X-Test-No-Csrf: true\" are sent without it, to test the 403.",
+          "if (!['GET', 'HEAD', 'OPTIONS'].includes(pm.request.method) && !pm.request.headers.has('X-Test-No-Csrf')) {",
+          "    pm.sendRequest({",
+          "        url: pm.variables.replaceIn('{{baseUrl}}/csrf-token/public'),",
+          "        method: 'GET',",
+          "        header: { Accept: pm.variables.get('apiAccept') }",
+          "    }, (err, res) => {",
+          "        if (err || res.code !== 200) {",
+          "            console.warn('Could not get a CSRF token', err || res.code);",
+          "            return;",
+          "        }",
+          "        const token = res.json().token;",
+          "        pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: token });",
+          "        pm.request.headers.upsert({ key: 'Cookie', value: 'XSRF-TOKEN=' + token });",
+          "    });",
+          "}",
+          "",
+          "",
           "// Creates test JWTs signed with the same secret as the backend (JWT_SECRET_KEY), until the login endpoint exists.",
           "// {{jwt}} = valid, {{jwtExpired}} = expired 1 minute ago, {{jwtTampered}} = valid token with a broken signature.",
           "const CryptoJS = require('crypto-js');",
@@ -79,6 +99,59 @@
       "name": "1. Public endpoints",
       "description": "No token needed (paths ending in /public).",
       "item": [
+        {
+          "name": "Get CSRF token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csrf-token/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csrf-token",
+                "public"
+              ]
+            },
+            "description": "Returns the CSRF token and sets the XSRF-TOKEN cookie. The collection script calls this automatically before every POST."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const token = pm.response.json().token;",
+                  "const setCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('XSRF-TOKEN='));",
+                  "pm.test('Returns the token and the header to send it in', () => {",
+                  "    pm.expect(token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(pm.response.json().headerName).to.eql('X-XSRF-TOKEN');",
+                  "});",
+                  "pm.test('Sets the XSRF-TOKEN cookie with the same value as the token', () => {",
+                  "    pm.expect(setCookie, 'Set-Cookie for XSRF-TOKEN').to.exist;",
+                  "    pm.expect(setCookie).to.include('XSRF-TOKEN=' + token);",
+                  "});",
+                  "pm.test('Cookie is readable by JavaScript (no HttpOnly), so the frontend can copy it into the header', () => {",
+                  "    pm.expect(setCookie.toLowerCase()).to.not.include('httponly');",
+                  "});",
+                  "pm.test('Cookie is valid for the whole site (Path=/)', () => pm.expect(setCookie).to.include('Path=/'));",
+                  "pm.test('Cookie was stored in the Postman cookie jar', () => pm.expect(pm.cookies.get('XSRF-TOKEN')).to.eql(token));",
+                  "pm.test('No session cookie: the API is stateless', () => {",
+                  "    pm.expect(pm.response.headers.all().some(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('JSESSIONID'))).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "List companies",
           "request": {
@@ -256,6 +329,53 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create contact - without CSRF token (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF protection from Postman.\"\n}"
+            },
+            "description": "Sent without the CSRF token: rejected before reaching the controller."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the missing CSRF token', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -420,6 +540,151 @@
           ]
         },
         {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman+{{$timestamp}}@example.com\",\n  \"mobileNumber\": \"+40{{$timestamp}}\",\n  \"password\": \"Postman-{{$guid}}\"\n}"
+            },
+            "description": "Creates a new user (unique email, mobile number and random password each run) and logs them in: the JWT comes back in the HttpOnly cookie and is copied into {{jwtFromRegister}}. Writes a row to the users table."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Logs the new user in as a job seeker', () => pm.expect(body.user.role).to.eql('ROLE_JOB_SEEKER'));",
+                  "// The JWT is not in the body any more: it comes in an HttpOnly cookie",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('No token in the response body (JavaScript never sees it)', () => pm.expect(body).to.not.have.property('jwtToken'));",
+                  "pm.test('Token cookie is HttpOnly, Secure, SameSite=Lax and only for the API (Path=/jobleaf)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    const flags = tokenCookie.toLowerCase();",
+                  "    ['httponly', 'secure', 'samesite=lax', 'path=/jobleaf', 'max-age='].forEach(flag => pm.expect(flags).to.include(flag));",
+                  "});",
+                  "// Saved so the next requests can send it as a Bearer header (Postman may not send Secure cookies over http)",
+                  "pm.environment.set('jwtFromRegister', tokenCookie.split(';')[0].substring('JOBLEAF_ACCESS_TOKEN='.length));",
+                  "pm.environment.set('registeredEmail', body.user.email);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - same email again (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"{{registeredEmail}}\",\n  \"mobileNumber\": \"+40{{$timestamp}}\",\n  \"password\": \"Postman-{{$guid}}\"\n}"
+            },
+            "description": "Uses the email from the Register request. Run Register first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Names the email field', () => pm.expect(pm.response.json().errors).to.have.property('email'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - leaked password (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman+leaked{{$timestamp}}@example.com\",\n  \"mobileNumber\": \"+41{{$timestamp}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "password123 is in the Have I Been Pwned list, so it is rejected. Needs internet access from the backend."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Names the password field', () => pm.expect(pm.response.json().errors).to.have.property('password'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Login",
           "request": {
             "method": "POST",
@@ -444,7 +709,7 @@
                 "public"
               ]
             },
-            "description": "Logs in with email and password and saves the returned JWT as {{jwtFromLogin}}. Use 'Bearer {{jwtFromLogin}}' to test with a real login instead of the generated token. Set loginPassword in the environment to the password your BCrypt hash was created from.",
+            "description": "Logs in with email and password. The JWT comes back in the HttpOnly JOBLEAF_ACCESS_TOKEN cookie, not in the body; the test copies it into {{jwtFromLogin}}. Set loginPassword in the environment.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"{{loginPassword}}\"\n}"
@@ -458,12 +723,25 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.test('Returns a JWT and the user', () => {",
-                  "    pm.expect(body.jwtToken).to.be.a('string');",
+                  "pm.test('Returns the user and when the session ends', () => {",
                   "    pm.expect(body.user.email).to.eql('admin@example.com');",
                   "    pm.expect(body.user.role).to.eql('ROLE_ADMIN');",
+                  "    pm.expect(body.expiresAt).to.be.a('string');",
                   "});",
-                  "pm.environment.set('jwtFromLogin', body.jwtToken);"
+                  "// The JWT is not in the body any more: it comes in an HttpOnly cookie",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('No token in the response body (JavaScript never sees it)', () => pm.expect(body).to.not.have.property('jwtToken'));",
+                  "pm.test('Token cookie is HttpOnly, Secure, SameSite=Lax and only for the API (Path=/jobleaf)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    const flags = tokenCookie.toLowerCase();",
+                  "    ['httponly', 'secure', 'samesite=lax', 'path=/jobleaf', 'max-age='].forEach(flag => pm.expect(flags).to.include(flag));",
+                  "});",
+                  "// Saved so the next requests can send it as a Bearer header (Postman may not send Secure cookies over http)",
+                  "pm.environment.set('jwtFromLogin', tokenCookie.split(';')[0].substring('JOBLEAF_ACCESS_TOKEN='.length));",
+                  "pm.test('No session cookie: the token is the only proof of login', () => {",
+                  "    pm.expect(pm.response.headers.all().some(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('JSESSIONID'))).to.be.false;",
+                  "});"
                 ]
               }
             }
@@ -548,6 +826,48 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Request passed security (not 401/403)', () => pm.expect(pm.response.code).to.not.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout",
+                "public"
+              ]
+            },
+            "description": "Deletes the token cookie (the browser cannot, it is HttpOnly). The JWT itself stays valid until it expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('Tells the browser to delete the token cookie (Max-Age=0, same path)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    pm.expect(tokenCookie).to.include('Max-Age=0');",
+                  "    pm.expect(tokenCookie).to.include('Path=/jobleaf');",
+                  "});"
                 ]
               }
             }
@@ -642,6 +962,223 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. CSRF cookies",
+      "description": "How the double-submit cookie protection reacts to the cookie and the header. These requests set the cookie and header themselves (X-Test-No-Csrf turns off the automatic token).",
+      "item": [
+        {
+          "name": "CSRF - cookie only, no header (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-cookie-only"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "Simulates a forged request from another site: the browser sends the cookie automatically, but the attacker cannot read it to build the header."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header only, no cookie (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-header-only"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "A header with a made-up value and no matching cookie is rejected: the value must equal the cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header and cookie differ (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-cookie-value"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-other-value"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "Both are present but do not match."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header matches cookie (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-same-value"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-same-value"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "The double submit only checks that header and cookie are equal, so any matching value passes. Writes a row to the contacts table."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }

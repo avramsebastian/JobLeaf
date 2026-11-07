@@ -6,6 +6,7 @@ package com.seby.jobleaf.domain.exceptions.domain;
 public class DomainValidationException extends LocalizedException {
 
     public static final String REQUIRED_FIELD_MESSAGE_KEY = "error.validation.field.required";
+    public static final String INVALID_FIELD_MESSAGE_KEY = "error.validation.field.invalid";
 
     private final String messageKey;
     private final String field;
@@ -23,6 +24,14 @@ public class DomainValidationException extends LocalizedException {
     public static DomainValidationException requiredField(String field, String resourceLabel) {
         return new DomainValidationException(REQUIRED_FIELD_MESSAGE_KEY, field,
                 resourceLabel + " " + field + " is required");
+    }
+
+    /**
+     * @param field   name of the invalid field, as exposed in the API
+     * @param message what is wrong and how to fix it
+     */
+    public static DomainValidationException invalidField(String field, String message) {
+        return new DomainValidationException(INVALID_FIELD_MESSAGE_KEY, field, message);
     }
 
     @Override

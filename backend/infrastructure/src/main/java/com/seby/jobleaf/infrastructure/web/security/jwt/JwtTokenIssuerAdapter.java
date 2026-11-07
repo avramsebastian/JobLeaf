@@ -1,7 +1,7 @@
 package com.seby.jobleaf.infrastructure.web.security.jwt;
 
 import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.UserAccount;
+import com.seby.jobleaf.domain.model.JobLeafUser;
 import com.seby.jobleaf.domain.port.out.auth.TokenIssuerPort;
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,14 +40,16 @@ public class JwtTokenIssuerAdapter implements TokenIssuerPort {
      * {@inheritDoc}
      */
     @Override
-    public AuthToken issue(UserAccount user) {
+    public AuthToken issue(JobLeafUser user) {
         Instant issuedAt = clock.instant();
         Instant expiresAt = issuedAt.plus(validity);
         String token = Jwts.builder()
                 .issuer(JwtClaimNames.ISSUER)
                 .subject(user.id().toString())
                 .claim(JwtClaimNames.EMAIL, user.email())
-                .claim(JwtClaimNames.ROLES, user.role())
+                .claim(JwtClaimNames.NAME, user.name())
+                .claim(JwtClaimNames.MOBILE_NUMBER, user.mobileNumber())
+                .claim(JwtClaimNames.ROLES, user.role().name())
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)
