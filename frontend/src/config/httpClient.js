@@ -1,6 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { API_BASE_URL } from "./api";
+import { clearSession } from "../utils/authSession";
 
 /**
  * Default API Accept Header
@@ -17,37 +18,11 @@ const httpClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    "Content-Type": "application/json",
+    // Request bodies use the same versioned media type the API accepts (application/json is rejected with 415)
+    "Content-Type": DEFAULT_ACCEPT_HEADER,
   },
   withCredentials: true, // Required for CSRF cookie handling
 });
-
-/**
- * Public endpoints that don't require authentication
- * These endpoints will not include the Authorization header
- */
-const PUBLIC_ENDPOINTS = [
-  "/auth/login",
-  "/auth/register",
-  "/companies",
-  "/contacts",
-];
-
-/**
- * Check if the request URL is a public endpoint
- * Note: We need to check exact matches to avoid false positives
- * For example, /admin/contacts should not match /contacts
- */
-const isPublicEndpoint = (url) => {
-  return PUBLIC_ENDPOINTS.some((endpoint) => {
-    // Check if URL exactly matches or starts with the endpoint followed by a slash or query param
-    return (
-      url === endpoint ||
-      url.startsWith(endpoint + "/") ||
-      url.startsWith(endpoint + "?")
-    );
-  });
-};
 
 /**
  * Request Interceptor
@@ -60,13 +35,8 @@ httpClient.interceptors.request.use(
 
     config.headers.Accept = DEFAULT_ACCEPT_HEADER;
 
-    // Add authentication token for non-public endpoints
-    if (!isPublicEndpoint(config.url)) {
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
-      }
-    }
+    // No Authorization header: the JWT is in an HttpOnly cookie that the browser sends by itself
+    // (withCredentials: true), on public endpoints too, so the backend always knows who made the request.
 
     // Handle CSRF token for non-safe HTTP methods
     const safeMethods = ["GET", "HEAD", "OPTIONS"];
@@ -76,7 +46,7 @@ httpClient.interceptors.request.use(
       // If CSRF token is not present in cookies, fetch it from the server
       if (!csrfToken) {
         try {
-          await axios.get(`${API_BASE_URL}/csrf-token`, {
+          await axios.get(`${API_BASE_URL}/csrf-token/public`, {
             withCredentials: true,
           });
           csrfToken = Cookies.get("XSRF-TOKEN");
@@ -85,13 +55,9 @@ httpClient.interceptors.request.use(
             throw new Error("Failed to retrieve CSRF token from cookies");
           }
         } catch (error) {
-          // Ignore 404 errors (endpoint might not be available) and continue
-          if (error.response && error.response.status === 404) {
-            console.warn("[CSRF Token] Endpoint not found (404), continuing without CSRF token");
-          } else {
-            console.error("[CSRF Token Error]", error);
-            return Promise.reject(error);
-          }
+          // The backend does not use CSRF tokens yet (JWT in the Authorization header), so a failed token fetch
+          // must not cancel the real request. If CSRF is enabled later, the backend rejects the request itself (403).
+          console.warn("[CSRF Token] Could not fetch a CSRF token, continuing without it", error.response?.status);
         }
       }
 
@@ -151,14 +117,12 @@ httpClient.interceptors.response.use(
 
           if (!isLoginRequest && !isOnLoginPage) {
             // Unauthorized - clear token and user data, then redirect to login
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("user");
+            clearSession();
             window.location.href = "/login";
           } else {
             // If it's a login request or we're on login page, just clear token
             // but don't redirect (let the component handle the error)
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("user");
+            clearSession();
           }
           break;
         case 403:

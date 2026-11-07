@@ -1,0 +1,1190 @@
+{
+  "info": {
+    "_postman_id": "b5b74593-3422-53fc-8c32-fd9950e71ed5",
+    "name": "JobLeaf API",
+    "description": "Requests and automatic tests for the JobLeaf backend.\n\nSetup: import 'JobLeaf-Local.postman_environment.json', select it, set jwtSecret to the same value as the backend's JWT_SECRET_KEY. Start PostgreSQL and the backend first.\n\nRun everything at once with 'Run collection' (Collection Runner).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// CSRF (double submit): every POST/PUT/PATCH/DELETE needs the XSRF-TOKEN cookie and the same value in the",
+          "// X-XSRF-TOKEN header. Get a fresh token first, then add both to the request.",
+          "// Requests with the header \"X-Test-No-Csrf: true\" are sent without it, to test the 403.",
+          "if (!['GET', 'HEAD', 'OPTIONS'].includes(pm.request.method) && !pm.request.headers.has('X-Test-No-Csrf')) {",
+          "    pm.sendRequest({",
+          "        url: pm.variables.replaceIn('{{baseUrl}}/csrf-token/public'),",
+          "        method: 'GET',",
+          "        header: { Accept: pm.variables.get('apiAccept') }",
+          "    }, (err, res) => {",
+          "        if (err || res.code !== 200) {",
+          "            console.warn('Could not get a CSRF token', err || res.code);",
+          "            return;",
+          "        }",
+          "        const token = res.json().token;",
+          "        pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: token });",
+          "        pm.request.headers.upsert({ key: 'Cookie', value: 'XSRF-TOKEN=' + token });",
+          "    });",
+          "}",
+          "",
+          "",
+          "// Creates test JWTs signed with the same secret as the backend (JWT_SECRET_KEY), until the login endpoint exists.",
+          "// {{jwt}} = valid, {{jwtExpired}} = expired 1 minute ago, {{jwtTampered}} = valid token with a broken signature.",
+          "const CryptoJS = require('crypto-js');",
+          "",
+          "const secret = pm.variables.get('jwtSecret');",
+          "if (!secret) {",
+          "    console.warn('jwtSecret is empty: select the \"JobLeaf Local\" environment and set jwtSecret to your JWT_SECRET_KEY');",
+          "    return;",
+          "}",
+          "",
+          "const base64Url = (words) => CryptoJS.enc.Base64.stringify(words)",
+          "    .replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');",
+          "const encode = (obj) => base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)));",
+          "",
+          "const buildJwt = (expiresInSeconds) => {",
+          "    const now = Math.floor(Date.now() / 1000);",
+          "    const header = { alg: 'HS256', typ: 'JWT' };",
+          "    const payload = {",
+          "        iss: 'jobleaf',               // the backend only accepts tokens issued by JobLeaf",
+          "        sub: pm.variables.get('tokenUserId'),  // user id: recorded in created_by/updated_by and the logs",
+          "        email: pm.variables.get('tokenEmail'),",
+          "        roles: pm.variables.get('tokenRoles'),",
+          "        iat: now,",
+          "        exp: now + expiresInSeconds",
+          "    };",
+          "    const unsigned = `${encode(header)}.${encode(payload)}`;",
+          "    return `${unsigned}.${base64Url(CryptoJS.HmacSHA256(unsigned, secret))}`;",
+          "};",
+          "",
+          "const jwt = buildJwt(3600);",
+          "pm.variables.set('jwt', jwt);",
+          "pm.variables.set('jwtExpired', buildJwt(-60));",
+          "pm.variables.set('jwtTampered', `${jwt}x`);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/jobleaf"
+    },
+    {
+      "key": "serverUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiAccept",
+      "value": "application/vnd.jobleaf+json;v=1.0"
+    },
+    {
+      "key": "tokenUserId",
+      "value": "6f1c2b7e-3d4a-4e5f-9a8b-1c2d3e4f5a02"
+    },
+    {
+      "key": "tokenEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "tokenRoles",
+      "value": "ROLE_ADMIN"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public endpoints",
+      "description": "No token needed (paths ending in /public).",
+      "item": [
+        {
+          "name": "Get CSRF token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csrf-token/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csrf-token",
+                "public"
+              ]
+            },
+            "description": "Returns the CSRF token and sets the XSRF-TOKEN cookie. The collection script calls this automatically before every POST."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const token = pm.response.json().token;",
+                  "const setCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('XSRF-TOKEN='));",
+                  "pm.test('Returns the token and the header to send it in', () => {",
+                  "    pm.expect(token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(pm.response.json().headerName).to.eql('X-XSRF-TOKEN');",
+                  "});",
+                  "pm.test('Sets the XSRF-TOKEN cookie with the same value as the token', () => {",
+                  "    pm.expect(setCookie, 'Set-Cookie for XSRF-TOKEN').to.exist;",
+                  "    pm.expect(setCookie).to.include('XSRF-TOKEN=' + token);",
+                  "});",
+                  "pm.test('Cookie is readable by JavaScript (no HttpOnly), so the frontend can copy it into the header', () => {",
+                  "    pm.expect(setCookie.toLowerCase()).to.not.include('httponly');",
+                  "});",
+                  "pm.test('Cookie is valid for the whole site (Path=/)', () => pm.expect(setCookie).to.include('Path=/'));",
+                  "pm.test('Cookie was stored in the Postman cookie jar', () => pm.expect(pm.cookies.get('XSRF-TOKEN')).to.eql(token));",
+                  "pm.test('No session cookie: the API is stateless', () => {",
+                  "    pm.expect(pm.response.headers.all().some(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('JSESSIONID'))).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List companies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "public"
+              ]
+            },
+            "description": "Returns all companies with their jobs. Also shows the security headers in the Headers tab."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns companies with jobs', () => {",
+                  "    const companies = pm.response.json();",
+                  "    pm.expect(companies).to.be.an('array').that.is.not.empty;",
+                  "    pm.expect(companies[0]).to.have.property('jobs');",
+                  "});",
+                  "pm.test('Security headers are present', () => {",
+                  "    ['Content-Security-Policy', 'Referrer-Policy', 'Permissions-Policy', 'X-Content-Type-Options', 'X-Frame-Options']",
+                  "        .forEach(header => pm.expect(pm.response.headers.has(header), header).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "Creates a contact message. Writes a row to the contacts table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Returns the success status', () => pm.expect(pm.response.json().status).to.eql('Request processed successfully!'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - blank name (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "A blank name is rejected by the domain rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Lists the invalid field', () => pm.expect(pm.response.json().errors).to.have.property('name'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - invalid email (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "description": "An invalid email is rejected by request validation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"not-an-email\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the contact endpoint from Postman.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Lists the invalid field', () => pm.expect(pm.response.json().errors).to.have.property('email'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create contact - without CSRF token (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF protection from Postman.\"\n}"
+            },
+            "description": "Sent without the CSRF token: rejected before reaching the controller."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the missing CSRF token', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Authentication (JWT)",
+      "description": "Secured paths (/jobleaf/** without /public). No secured endpoint exists yet, so a request that passes security answers 404: 401 -> 404 between 'no token' and 'valid token' proves the JWT is accepted.",
+      "item": [
+        {
+          "name": "Secured path - no token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "Without a token the security filter chain rejects the request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"Authentication is required to access this resource\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - valid token (404 = passed security)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "With a valid token the request gets past security; 404 only because no secured endpoint exists here yet."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Request passed security (not 401/403)', () => pm.expect(pm.response.code).to.not.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - expired token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtExpired}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "A token whose exp is in the past."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"The access token has expired, please log in again\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - tampered token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtTampered}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "A valid token with an extra character, so the signature no longer matches."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"The access token is invalid\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman+{{$timestamp}}@example.com\",\n  \"mobileNumber\": \"+40{{$timestamp}}\",\n  \"password\": \"Postman-{{$guid}}\"\n}"
+            },
+            "description": "Creates a new user (unique email, mobile number and random password each run) and logs them in: the JWT comes back in the HttpOnly cookie and is copied into {{jwtFromRegister}}. Writes a row to the users table."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Logs the new user in as a job seeker', () => pm.expect(body.user.role).to.eql('ROLE_JOB_SEEKER'));",
+                  "// The JWT is not in the body any more: it comes in an HttpOnly cookie",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('No token in the response body (JavaScript never sees it)', () => pm.expect(body).to.not.have.property('jwtToken'));",
+                  "pm.test('Token cookie is HttpOnly, Secure, SameSite=Lax and only for the API (Path=/jobleaf)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    const flags = tokenCookie.toLowerCase();",
+                  "    ['httponly', 'secure', 'samesite=lax', 'path=/jobleaf', 'max-age='].forEach(flag => pm.expect(flags).to.include(flag));",
+                  "});",
+                  "// Saved so the next requests can send it as a Bearer header (Postman may not send Secure cookies over http)",
+                  "pm.environment.set('jwtFromRegister', tokenCookie.split(';')[0].substring('JOBLEAF_ACCESS_TOKEN='.length));",
+                  "pm.environment.set('registeredEmail', body.user.email);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - same email again (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"{{registeredEmail}}\",\n  \"mobileNumber\": \"+40{{$timestamp}}\",\n  \"password\": \"Postman-{{$guid}}\"\n}"
+            },
+            "description": "Uses the email from the Register request. Run Register first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Names the email field', () => pm.expect(pm.response.json().errors).to.have.property('email'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - leaked password (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman+leaked{{$timestamp}}@example.com\",\n  \"mobileNumber\": \"+41{{$timestamp}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "password123 is in the Have I Been Pwned list, so it is rejected. Needs internet access from the backend."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Names the password field', () => pm.expect(pm.response.json().errors).to.have.property('password'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login",
+                "public"
+              ]
+            },
+            "description": "Logs in with email and password. The JWT comes back in the HttpOnly JOBLEAF_ACCESS_TOKEN cookie, not in the body; the test copies it into {{jwtFromLogin}}. Set loginPassword in the environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"{{loginPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns the user and when the session ends', () => {",
+                  "    pm.expect(body.user.email).to.eql('admin@example.com');",
+                  "    pm.expect(body.user.role).to.eql('ROLE_ADMIN');",
+                  "    pm.expect(body.expiresAt).to.be.a('string');",
+                  "});",
+                  "// The JWT is not in the body any more: it comes in an HttpOnly cookie",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('No token in the response body (JavaScript never sees it)', () => pm.expect(body).to.not.have.property('jwtToken'));",
+                  "pm.test('Token cookie is HttpOnly, Secure, SameSite=Lax and only for the API (Path=/jobleaf)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    const flags = tokenCookie.toLowerCase();",
+                  "    ['httponly', 'secure', 'samesite=lax', 'path=/jobleaf', 'max-age='].forEach(flag => pm.expect(flags).to.include(flag));",
+                  "});",
+                  "// Saved so the next requests can send it as a Bearer header (Postman may not send Secure cookies over http)",
+                  "pm.environment.set('jwtFromLogin', tokenCookie.split(';')[0].substring('JOBLEAF_ACCESS_TOKEN='.length));",
+                  "pm.test('No session cookie: the token is the only proof of login', () => {",
+                  "    pm.expect(pm.response.headers.all().some(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('JSESSIONID'))).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login",
+                "public"
+              ]
+            },
+            "description": "Wrong password: same generic message as an unknown email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"definitely-wrong-password\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type is application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "});",
+                  "pm.test('Detail explains the problem', () => pm.expect(pm.response.json().detail).to.eql(\"Invalid email or password\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Secured path - token from login (404 = passed security)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtFromLogin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "Uses the real token saved by the Login request. Run Login first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Request passed security (not 401/403)', () => pm.expect(pm.response.code).to.not.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout",
+                "public"
+              ]
+            },
+            "description": "Deletes the token cookie (the browser cannot, it is HttpOnly). The JWT itself stays valid until it expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const tokenCookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value)",
+                  "    .find(v => v.startsWith('JOBLEAF_ACCESS_TOKEN='));",
+                  "pm.test('Tells the browser to delete the token cookie (Max-Age=0, same path)', () => {",
+                  "    pm.expect(tokenCookie, 'Set-Cookie for JOBLEAF_ACCESS_TOKEN').to.exist;",
+                  "    pm.expect(tokenCookie).to.include('Max-Age=0');",
+                  "    pm.expect(tokenCookie).to.include('Path=/jobleaf');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Infrastructure",
+      "description": "Operational endpoints outside /jobleaf.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/health",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Health check, open without a token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prometheus metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/prometheus",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "Scraped by Prometheus, open without a token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other actuator endpoint - denied (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/actuator/env",
+              "host": [
+                "{{serverUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "env"
+              ]
+            },
+            "description": "Everything not explicitly opened is denied (denyAll)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. CSRF cookies",
+      "description": "How the double-submit cookie protection reacts to the cookie and the header. These requests set the cookie and header themselves (X-Test-No-Csrf turns off the automatic token).",
+      "item": [
+        {
+          "name": "CSRF - cookie only, no header (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-cookie-only"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "Simulates a forged request from another site: the browser sends the cookie automatically, but the attacker cannot read it to build the header."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header only, no cookie (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-header-only"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "A header with a made-up value and no matching cookie is rejected: the value must equal the cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header and cookie differ (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-cookie-value"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-other-value"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "Both are present but do not match."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains the CSRF problem', () => pm.expect(pm.response.json().detail).to.include('CSRF token'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF - header matches cookie (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Test-No-Csrf",
+                "value": "true"
+              },
+              {
+                "key": "Cookie",
+                "value": "XSRF-TOKEN=postman-same-value"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "postman-same-value"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "public"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test\",\n  \"email\": \"postman@example.com\",\n  \"userType\": \"Employer\",\n  \"subject\": \"Testing\",\n  \"message\": \"Testing the CSRF cookie protection from Postman.\"\n}"
+            },
+            "description": "The double submit only checks that header and cookie are equal, so any matching value passes. Writes a row to the contacts table."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

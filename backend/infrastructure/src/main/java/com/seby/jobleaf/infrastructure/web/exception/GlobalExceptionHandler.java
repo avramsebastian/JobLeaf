@@ -1,5 +1,7 @@
 package com.seby.jobleaf.infrastructure.web.exception;
 
+import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
+import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +11,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,7 +31,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Translates exceptions into RFC 9457 {@link ProblemDetail} responses ({@code application/problem+json}).
+ * Translates exceptions into {@link ProblemDetail} responses ({@code application/problem+json}).
  * <p>
  * Spring MVC exceptions (unknown route, malformed body, unsupported method or media type, validation) keep their
  * own 4xx status through {@link ResponseEntityExceptionHandler}. Unexpected exceptions become a generic 500 whose
@@ -52,6 +59,46 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ResponseEntity<ProblemDetail> response = problem(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
         response.getBody().setProperty(ERRORS_PROPERTY, Map.of(exception.getField(), exception.getMessage()));
         return response;
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidCredentials(InvalidCredentialsException exception,
+                                                                  WebRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, exception.getMessage(), request);
+    }
+
+    /**
+     * Reached through {@code ProblemDetailSecurityHandler} when a secured endpoint is called without credentials.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException exception, WebRequest request) {
+        log.debug("Authentication failed for {}: {}", instancePath(request), exception.getMessage());
+        String detail = switch (exception) {
+            case CredentialsExpiredException _ -> "The access token has expired, please log in again";
+            case BadCredentialsException _ -> "The access token is invalid";
+            default -> "Authentication is required to access this resource";
+        };
+        return problem(HttpStatus.UNAUTHORIZED, detail, request);
+    }
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ProblemDetail> handleUserAlreadyExists(UserAlreadyExistsException exception,
+                                                                 WebRequest request) {
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+        response.getBody().setProperty(ERRORS_PROPERTY, Map.of(exception.getField(), exception.getMessage()));
+        return response;
+    }
+
+    /**
+     * Also reached for a missing or wrong CSRF token: {@link CsrfException} is an {@link AccessDeniedException}.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, WebRequest request) {
+        log.debug("Access denied for {}: {}", instancePath(request), exception.getMessage());
+        String detail = exception instanceof CsrfException
+                ? "The CSRF token is missing or invalid. Get one from /csrf-token/public and send it in the X-XSRF-TOKEN header"
+                : "You do not have permission to access this resource";
+        return problem(HttpStatus.FORBIDDEN, detail, request);
     }
 
     @ExceptionHandler(Exception.class)

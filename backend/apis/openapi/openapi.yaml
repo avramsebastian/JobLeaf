@@ -12,20 +12,25 @@ servers:
 
 security:
   - bearerAuth: [ ]
+  - cookieAuth: [ ]
 
 tags:
   - name: Company
     description: Companies management endpoints.
   - name: Contact
     description: Contacts management endpoints.
+  - name: Authentication
+    description: Authentication endpoints.
+  - name: CSRF
+    description: CSRF token generation endpoint.
 
 paths:
-  /companies:
+  /companies/public:
     get:
       tags: [ Company ]
       operationId: listCompanies
       summary: List companies.
-      description: Returns all companies together with their jobs. Accessible by guests and logged-in users.
+      description: Returns all companies together with their jobs. Public endpoint, no authentication required.
       security: [ ]
       parameters: [ ]
       responses:
@@ -37,18 +42,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CompanyResponse'
-        "401": { $ref: '#/components/responses/Unauthorized' }
-        "403": { $ref: '#/components/responses/Forbidden' }
         "406": { $ref: '#/components/responses/NotAcceptable' }
         "429": { $ref: '#/components/responses/TooManyRequests' }
         default: { $ref: '#/components/responses/UnexpectedError' }
 
-  /contacts:
+  /contacts/public:
     post:
       tags: [Contact]
       operationId: createContact
       summary: Create contact.
-      description: Creates contact from the contact us page.
+      description: Creates contact from the contact us page. Public endpoint, no authentication required.
       security: [ ]
       parameters: [ ]
       requestBody:
@@ -65,15 +68,129 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateContactResponse'
         '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
+        '403': {$ref: '#/components/responses/CsrfTokenMissing'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
-        '409': {$ref: '#/components/responses/Conflict'}
         '415': {$ref: '#/components/responses/UnsupportedMediaType'}
-        '422': {$ref: '#/components/responses/UnprocessableEntity'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /auth/login/public:
+    post:
+      tags: [Authentication]
+      operationId: loginUser
+      summary: Login user.
+      description: |
+        Checks the email and password and sets the signed JWT in the `JOBLEAF_ACCESS_TOKEN` cookie
+        (HttpOnly, Secure, SameSite=Lax), valid until `expiresAt`. The token is not in the response body,
+        so JavaScript never sees it.
+      security: [ ]
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/CsrfTokenMissing'}
+        '401':
+          description: Invalid email or password. The same message is used for both, so callers cannot tell which emails are registered.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /auth/register/public:
+    post:
+      tags: [ Authentication ]
+      operationId: registerUser
+      summary: Register user.
+      description: |
+        Creates an account and logs the user in: returns the user and sets the JWT cookie, like the login.
+        Every new account gets the role `ROLE_JOB_SEEKER`; only an admin can change it.
+        Passwords found in known data breaches are rejected.
+        Like every POST, it needs the CSRF token: see `GET /csrf-token/public`.
+      security: [ ]
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Register successful.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/CsrfTokenMissing' }
+        '409':
+          description: An account with this email or mobile number already exists; the field is listed in `errors`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '406': { $ref: '#/components/responses/NotAcceptable' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        default: { $ref: '#/components/responses/UnexpectedError' }
+
+  /auth/logout/public:
+    post:
+      tags: [ Authentication ]
+      operationId: logoutUser
+      summary: Logout user.
+      description: |
+        Deletes the `JOBLEAF_ACCESS_TOKEN` cookie. The browser cannot do it itself because the cookie is HttpOnly.
+        Public, so it also works with an expired token. Like every POST, it needs the CSRF token.
+      security: [ ]
+      parameters: [ ]
+      responses:
+        '200':
+          description: Logged out; the response also tells the browser to delete the cookie.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+        '403': { $ref: '#/components/responses/CsrfTokenMissing' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        default: { $ref: '#/components/responses/UnexpectedError' }
+
+  /csrf-token/public:
+    get:
+      tags: [ CSRF ]
+      operationId: getCSRFToken
+      summary: Get CSRF token.
+      description: |
+        Returns the CSRF token and sets it in the `XSRF-TOKEN` cookie.
+        Every POST, PUT, PATCH and DELETE must send the same value in the `X-XSRF-TOKEN` header,
+        otherwise it is rejected with 403. Call this once before the first such request.
+      security: [ ]
+      parameters: [ ]
+      responses:
+        "200":
+          description: CSRF token retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+        "406": { $ref: '#/components/responses/NotAcceptable' }
+        "429": { $ref: '#/components/responses/TooManyRequests' }
+        default: { $ref: '#/components/responses/UnexpectedError' }
 
 
 components:
@@ -82,6 +199,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: For API clients. Browsers use the cookie instead.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: JOBLEAF_ACCESS_TOKEN
+      description: |
+        HttpOnly cookie set by login and register. The browser sends it automatically,
+        so state-changing requests also need the CSRF token.
 
   parameters:
     CompanyId:
@@ -140,6 +265,53 @@ components:
 
     # Requests
 
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 8
+          maxLength: 72
+          description: Plaintext password (hashed server-side; never stored directly).
+          example: "CorrectHorseBatteryStaple"
+
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - mobileNumber
+        - password
+      properties:
+        name:
+          $ref: '#/components/schemas/PersonName'
+        email:
+          $ref: '#/components/schemas/Email'
+        mobileNumber:
+          type: string
+          format: phone
+          minLength: 8
+          maxLength: 16
+          pattern: '^\+[1-9]\d{6,14}$'
+          example: "+12025550143"
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 8
+          maxLength: 72
+          description: Plaintext password (hashed server-side; never stored directly).
+          example: "CorrectHorseBatteryStaple"
+
     CreateContactRequest:
       type: object
       additionalProperties: false
@@ -171,6 +343,118 @@ components:
           example: "Employer"
 
     # Responses
+
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+        - headerName
+      properties:
+        token:
+          type: string
+          description: CSRF token. The same value is also set in the `XSRF-TOKEN` cookie.
+          example: "4bfd1575-3ad1-4d21-96c7-4ef2d9f86721"
+        headerName:
+          type: string
+          description: Header in which the token must be sent back.
+          example: "X-XSRF-TOKEN"
+
+    LogoutResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          maxLength: 255
+          description: Status message for the logout.
+          example: "Logout successful"
+
+    RegisterResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - user
+        - expiresAt
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Status message for the registration.
+          example: "Registration successful"
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        expiresAt:
+          $ref: '#/components/schemas/DateTime'
+          description: When the token in the cookie stops being accepted; log in again after that.
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - user
+        - expiresAt
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Status message for the login operation.
+          example: "Login successful"
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        expiresAt:
+          $ref: '#/components/schemas/DateTime'
+
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - name
+        - email
+        - role
+        - createdAt
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          minLength: 5
+          maxLength: 254
+          example: "john.doe@company.com"
+        mobileNumber:
+          type: string
+          format: phone
+          minLength: 8
+          maxLength: 16
+          pattern: '^\+[1-9]\d{6,14}$'
+          example: "+12025550143"
+        role:
+          type: string
+          enum: [ ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN ]
+          description: Role of the user, as used by Spring Security and the frontend.
+          example: "ROLE_JOB_SEEKER"
+        companyId:
+          $ref: '#/components/schemas/Uuid'
+        companyName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: "Acme Corp"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
 
     CompanyResponse:
       type: object
@@ -413,7 +697,7 @@ components:
         detail:
           type: string
           maxLength: 1000
-          description: Human-readable explanation of this occurrence of the problem.
+          description: Explanation of this occurrence of the problem.
         instance:
           type: string
           maxLength: 200
@@ -429,19 +713,25 @@ components:
 
   responses:
     BadRequest:
-      description: Bad Request
+      description: Bad Request. Malformed body or invalid fields; validation messages are listed in `errors`.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
     Unauthorized:
-      description: Unauthorized
+      description: Unauthorized. The endpoint requires a Bearer JWT and none (or an invalid one) was sent.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    CsrfTokenMissing:
+      description: Forbidden. The CSRF token is missing or does not match the `XSRF-TOKEN` cookie; get one from `GET /csrf-token/public`.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
     Forbidden:
-      description: Forbidden
+      description: Forbidden. The caller is authenticated but not allowed to perform this operation.
       content:
         application/problem+json:
           schema:
