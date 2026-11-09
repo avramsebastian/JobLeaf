@@ -9,10 +9,7 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    userType: 'jobSeeker',
-    mobileNumber: '',
-    // Employer specific fields
-    company: ''
+    mobileNumber: ''
   });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
@@ -40,13 +37,13 @@ const Register = () => {
       newErrors.email = 'Email address must be a valid value';
     }
 
-    // Password validation - must be 8-20 characters (backend requirement)
+    // Password validation - must be 8-72 characters (backend requirement; BCrypt only uses the first 72)
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
-    } else if (formData.password.length > 20) {
-      newErrors.password = 'Password must not exceed 20 characters';
+    } else if (formData.password.length > 72) {
+      newErrors.password = 'Password must not exceed 72 characters';
     }
 
     if (!formData.confirmPassword) {
@@ -55,15 +52,11 @@ const Register = () => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
-    // Mobile number validation - must be exactly 10 digits (backend requirement)
+    // Mobile number validation - international format, same rule as the backend
     if (!formData.mobileNumber.trim()) {
       newErrors.mobileNumber = 'Mobile number is required';
-    } else if (!/^\d{10}$/.test(formData.mobileNumber.trim())) {
-      newErrors.mobileNumber = 'Mobile number must be exactly 10 digits';
-    }
-
-    if (formData.userType === 'employer' && !formData.company.trim()) {
-      newErrors.company = 'Company name is required';
+    } else if (!/^\+[1-9]\d{6,14}$/.test(formData.mobileNumber.trim())) {
+      newErrors.mobileNumber = 'Mobile number must be in international format, e.g. +40712345678';
     }
 
     setErrors(newErrors);
@@ -82,11 +75,8 @@ const Register = () => {
     const result = await register(formData);
 
     if (result.success) {
-      // Redirect to login page immediately with success message
-      navigate('/login', {
-        replace: true,
-        state: { message: result.message || 'Registration successful! Please login with your credentials.' }
-      });
+      // Registration logs the user in, so go straight into the app
+      navigate('/', { replace: true });
     } else {
       // Check if we have field-specific errors from backend
       if (result.fieldErrors) {
@@ -112,14 +102,6 @@ const Register = () => {
         [e.target.name]: ''
       }));
     }
-  };
-
-  const handleUserTypeChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      userType: e.target.value,
-      company: ''
-    }));
   };
 
   return (
@@ -191,7 +173,7 @@ const Register = () => {
                 onChange={handleChange}
                 className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 outline-none ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'} ${errors.mobileNumber ? 'border-red-300' : 'border-gray-300'
                   }`}
-                placeholder="Enter 10-digit mobile number"
+                placeholder="e.g. +40712345678"
               />
               {errors.mobileNumber && <p className="mt-1 text-sm text-red-600">{errors.mobileNumber}</p>}
             </div>

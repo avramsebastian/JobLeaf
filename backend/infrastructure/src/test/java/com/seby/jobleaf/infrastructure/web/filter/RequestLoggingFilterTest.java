@@ -1,5 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.filter;
 
+import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -14,26 +15,28 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.MDC;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RequestLoggingFilterTest {
+
+    private static final AuthenticatedUser USER = new AuthenticatedUser(UUID.randomUUID(), "admin@example.com");
 
     @Mock
     private HttpServletRequest request;
@@ -98,7 +101,7 @@ class RequestLoggingFilterTest {
     @DisplayName("Should mark the current span as failed for server error responses")
     void shouldMarkSpanAsErrorForServerErrorResponses() throws ServletException, IOException {
         // Given
-        when(request.getRequestURI()).thenReturn("/jobleaf/companies");
+        when(request.getRequestURI()).thenReturn("/jobleaf/companies/public");
         when(request.getMethod()).thenReturn("GET");
         when(request.getQueryString()).thenReturn(null);
         when(response.getStatus()).thenReturn(503);
@@ -129,29 +132,18 @@ class RequestLoggingFilterTest {
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"admin\" OR 1=1", "user id with spaces", "<script>"})
-    @DisplayName("Should fall back to anonymous when the user id header contains unsafe characters")
-    void resolveUserId_whenUnsafe_returnsAnonymous(String headerValue) {
-        when(request.getHeader("X-User-Id")).thenReturn(headerValue);
+    @Test
+    @DisplayName("Should use the id of the user authenticated by the JWT filter")
+    void resolveUserId_whenAuthenticated_returnsUserId() {
+        when(request.getAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE)).thenReturn(USER);
 
-        assertThat(filter.resolveUserId(request)).isEqualTo("anonymous");
+        assertThat(RequestLoggingFilter.resolveUserId(request)).isEqualTo(USER.id().toString());
     }
 
     @Test
-    @DisplayName("Should fall back to anonymous when the user id header is too long")
-    void resolveUserId_whenTooLong_returnsAnonymous() {
-        when(request.getHeader("X-User-Id")).thenReturn("a".repeat(65));
-
-        assertThat(filter.resolveUserId(request)).isEqualTo("anonymous");
-    }
-
-    @Test
-    @DisplayName("Should accept and trim a safe user id")
-    void resolveUserId_whenSafe_returnsTrimmedValue() {
-        when(request.getHeader("X-User-Id")).thenReturn(" 00000000-0000-0000-0000-000000000001 ");
-
-        assertThat(filter.resolveUserId(request)).isEqualTo("00000000-0000-0000-0000-000000000001");
+    @DisplayName("Should be anonymous when no user was authenticated")
+    void resolveUserId_whenNotAuthenticated_returnsAnonymous() {
+        assertThat(RequestLoggingFilter.resolveUserId(request)).isEqualTo("anonymous");
     }
 
     @Test
@@ -175,34 +167,11 @@ class RequestLoggingFilterTest {
     }
 
     @Test
-    @DisplayName("Should expose the user id from the header in the MDC during the request and clear it afterwards")
-    void shouldPutUserIdInMdcDuringRequestAndClearItAfterwards() throws ServletException, IOException {
+    @DisplayName("Should log as anonymous until the user is authenticated and clear the MDC afterwards")
+    void shouldStartAnonymousAndClearMdcAfterwards() throws ServletException, IOException {
         // Given
-        when(request.getRequestURI()).thenReturn("/jobleaf/companies");
+        when(request.getRequestURI()).thenReturn("/jobleaf/companies/public");
         when(request.getMethod()).thenReturn("GET");
-        when(request.getHeader("X-User-Id")).thenReturn("user-42");
-        when(response.getStatus()).thenReturn(200);
-        AtomicReference<String> userIdDuringChain = new AtomicReference<>();
-        doAnswer(invocation -> {
-            userIdDuringChain.set(MDC.get("userId"));
-            return null;
-        }).when(filterChain).doFilter(request, response);
-
-        // When
-        filter.doFilter(request, response, filterChain);
-
-        // Then
-        assertThat(userIdDuringChain.get()).isEqualTo("user-42");
-        assertThat(MDC.get("userId")).isNull();
-    }
-
-    @Test
-    @DisplayName("Should fall back to anonymous when the user id header is blank")
-    void shouldUseAnonymousWhenUserIdHeaderIsBlank() throws ServletException, IOException {
-        // Given
-        when(request.getRequestURI()).thenReturn("/jobleaf/companies");
-        when(request.getMethod()).thenReturn("GET");
-        when(request.getHeader("X-User-Id")).thenReturn("  ");
         when(response.getStatus()).thenReturn(200);
         AtomicReference<String> userIdDuringChain = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -215,6 +184,30 @@ class RequestLoggingFilterTest {
 
         // Then
         assertThat(userIdDuringChain.get()).isEqualTo("anonymous");
+        assertThat(MDC.get("userId")).isNull();
+    }
+
+    @Test
+    @DisplayName("Should ignore a client-supplied X-User-Id header, which anyone could fake")
+    void shouldNotTrustUserIdHeader() throws ServletException, IOException {
+        // Given
+        when(request.getRequestURI()).thenReturn("/jobleaf/companies/public");
+        when(request.getMethod()).thenReturn("GET");
+        lenient().when(request.getHeader("X-User-Id")).thenReturn("admin");
+        when(response.getStatus()).thenReturn(200);
+
+        try (SdkTracerProvider tracerProvider = SdkTracerProvider.builder().build()) {
+            Span span = tracerProvider.get("test").spanBuilder("request").startSpan();
+            try (Scope ignored = span.makeCurrent()) {
+                // When
+                filter.doFilter(request, response, filterChain);
+
+                // Then
+                span.end();
+                assertThat(((ReadableSpan) span).toSpanData().getAttributes().get(AttributeKey.stringKey("user.id")))
+                        .isEqualTo("anonymous");
+            }
+        }
     }
 
     @Test
@@ -236,9 +229,10 @@ class RequestLoggingFilterTest {
     @DisplayName("Should record the user id on the span and leave the status unset for successful responses")
     void shouldTagSpanWithUserAndKeepStatusUnsetOnSuccess() throws ServletException, IOException {
         // Given
-        when(request.getRequestURI()).thenReturn("/jobleaf/companies");
+        when(request.getRequestURI()).thenReturn("/jobleaf/companies/public");
         when(request.getMethod()).thenReturn("GET");
-        when(request.getHeader("X-User-Id")).thenReturn("user-42");
+        // lenient: OncePerRequestFilter also reads its own "already filtered" attribute from the same mock
+        lenient().when(request.getAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE)).thenReturn(USER);
         when(response.getStatus()).thenReturn(200);
 
         try (SdkTracerProvider tracerProvider = SdkTracerProvider.builder().build()) {
@@ -250,7 +244,7 @@ class RequestLoggingFilterTest {
                 // Then
                 span.end();
                 SpanData data = ((ReadableSpan) span).toSpanData();
-                assertThat(data.getAttributes().get(AttributeKey.stringKey("user.id"))).isEqualTo("user-42");
+                assertThat(data.getAttributes().get(AttributeKey.stringKey("user.id"))).isEqualTo(USER.id().toString());
                 assertThat(data.getStatus().getStatusCode()).isEqualTo(StatusCode.UNSET);
             }
         }
@@ -297,6 +291,6 @@ class RequestLoggingFilterTest {
 
         // Then
         assertThat(userIdDuringChain.get()).isNull();
-        verify(request, never()).getHeader("X-User-Id");
+        verify(request, never()).getAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE);
     }
 }

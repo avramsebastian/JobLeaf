@@ -1,5 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.exception;
 
+import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyNotFoundException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -85,6 +90,55 @@ class GlobalExceptionHandlerTest {
         assertThat(problem.getDetail()).isEqualTo("Contact name is required");
         assertThat(problem.getType()).isEqualTo(URI.create("https://jobleaf.local/problems/bad-request"));
         assertThat(problem.getProperties()).containsEntry("errors", Map.of("name", "Contact name is required"));
+    }
+
+    @Test
+    @DisplayName("Should map a missing authentication to 401 with a typed problem")
+    void handleAuthentication_returns401() {
+        // Given
+        InsufficientAuthenticationException exception =
+                new InsufficientAuthenticationException("Full authentication is required");
+
+        // When
+        ResponseEntity<ProblemDetail> response = handler.handleAuthentication(exception, request);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        ProblemDetail problem = problemOf(response);
+        assertThat(problem.getDetail()).isEqualTo("Authentication is required to access this resource");
+        assertThat(problem.getType()).isEqualTo(URI.create("https://jobleaf.local/problems/unauthorized"));
+        assertThat(problem.getInstance()).isEqualTo(URI.create("/jobleaf/contacts"));
+    }
+
+    @Test
+    @DisplayName("Should map wrong login credentials to 401 with the generic message")
+    void handleInvalidCredentials_returns401() {
+        ResponseEntity<ProblemDetail> response = handler.handleInvalidCredentials(new InvalidCredentialsException(), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(problemOf(response).getDetail()).isEqualTo("Invalid email or password");
+    }
+
+    @Test
+    @DisplayName("Should tell the client when the access token expired or is invalid")
+    void handleAuthentication_explainsTokenProblems() {
+        assertThat(problemOf(handler.handleAuthentication(new CredentialsExpiredException("JWT expired"), request))
+                .getDetail()).isEqualTo("The access token has expired, please log in again");
+        assertThat(problemOf(handler.handleAuthentication(new BadCredentialsException("Invalid JWT"), request))
+                .getDetail()).isEqualTo("The access token is invalid");
+    }
+
+    @Test
+    @DisplayName("Should map an access denial to 403 with a typed problem")
+    void handleAccessDenied_returns403() {
+        // When
+        ResponseEntity<ProblemDetail> response = handler.handleAccessDenied(new AccessDeniedException("Access Denied"), request);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        ProblemDetail problem = problemOf(response);
+        assertThat(problem.getDetail()).isEqualTo("You do not have permission to access this resource");
+        assertThat(problem.getType()).isEqualTo(URI.create("https://jobleaf.local/problems/forbidden"));
     }
 
     @Test

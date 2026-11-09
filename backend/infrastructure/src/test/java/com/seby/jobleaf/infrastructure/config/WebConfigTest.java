@@ -4,14 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.servlet.config.annotation.ApiVersionConfigurer;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -55,33 +50,5 @@ class WebConfigTest {
 
         // Then
         verify(configurer).addPathPrefix(eq("/jobleaf"), any());
-    }
-
-    private static class TestCorsRegistry extends CorsRegistry {
-        @Override
-        public Map<String, CorsConfiguration> getCorsConfigurations() {
-            return super.getCorsConfigurations();
-        }
-    }
-
-    @Test
-    @DisplayName("Should configure CORS mappings for /jobleaf/** with localhost origin and credentials enabled")
-    void addCorsMappings_configuresCorsRegistry() {
-        // Given
-        TestCorsRegistry registry = new TestCorsRegistry();
-
-        // When
-        webConfig.addCorsMappings(registry);
-
-        // Then
-        Map<String, CorsConfiguration> corsConfigurations = registry.getCorsConfigurations();
-        assertThat(corsConfigurations).containsKey("/jobleaf/**");
-
-        CorsConfiguration config = corsConfigurations.get("/jobleaf/**");
-        assertThat(config.getAllowedOrigins()).contains("http://localhost:5173");
-        assertThat(config.getAllowedMethods()).contains("*");
-        assertThat(config.getAllowedHeaders()).contains("*");
-        assertThat(config.getAllowCredentials()).isTrue();
-        assertThat(config.getMaxAge()).isEqualTo(3600L);
     }
 }

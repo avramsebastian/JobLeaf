@@ -1,106 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
+import { clearSession, getExpiresAt, isSessionExpired, saveSession } from '../utils/authSession';
 
 const AuthContext = createContext();
-
-// Dummy credentials for testing
-const DUMMY_USERS = {
-  employers: [
-    {
-      id: 1,
-      email: 'employer@company.com',
-      password: 'employer123',
-      name: 'John Smith',
-      company: 'Tech Solutions Inc.',
-      role: 'employer'
-    },
-    {
-      id: 2,
-      email: 'hr@startup.com',
-      password: 'hr123',
-      name: 'Sarah Johnson',
-      company: 'Innovation Startup',
-      role: 'employer'
-    }
-  ],
-  jobSeekers: [
-    {
-      id: 3,
-      email: 'jobseeker@email.com',
-      password: 'jobseeker123',
-      name: 'Alex Brown',
-      title: 'Software Developer',
-      phone: '+1 (555) 123-4567',
-      location: 'San Francisco, CA',
-      bio: 'Experienced full-stack developer with 5 years in React and Node.js',
-      skills: ['JavaScript', 'React', 'Node.js', 'Python', 'AWS'],
-      experience: '5 years',
-      portfolio: 'https://alexbrown.dev',
-      profileImage: null, // Will be set when user uploads
-      resume: 'data:application/pdf;base64,JVBERi0xLjcKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFsgMyAwIFIgXQovQ291bnQgMQo+PgplbmRvYmoKMyAwIG9iago8PAovVHlwZSAvUGFnZQovUGFyZW50IDIgMCBSCi9NZWRpYUJveCBbIDAgMCA2MTIgNzkyIF0KL0NvbnRlbnRzIDQgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCi9GMSAyNCBUZgoxMDAgNzAwIFRkCihTYW1wbGUgUmVzdW1lKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDIxMCAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDUKL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjMwNQolJUVPRgo=', // Sample PDF for testing
-      workHistory: [
-        {
-          id: 1,
-          company: 'Tech Solutions Inc.',
-          position: 'Senior Software Developer',
-          startDate: '2020-01',
-          endDate: '',
-          current: true,
-          description: 'Led development of scalable web applications using React and Node.js. Managed a team of 3 developers.'
-        }
-      ],
-      education: [
-        {
-          id: 1,
-          degree: 'Bachelor of Science in Computer Science',
-          institution: 'University of California, Berkeley',
-          year: '2018',
-          description: 'Focused on software engineering and web technologies'
-        }
-      ],
-      profileComplete: true, // For testing
-      role: 'jobSeeker'
-    },
-    {
-      id: 4,
-      email: 'candidate@email.com',
-      password: 'candidate123',
-      name: 'Emma Davis',
-      title: 'Product Manager',
-      phone: '+1 (555) 234-5678',
-      location: 'New York, NY',
-      bio: 'Strategic product manager with experience in agile development and market analysis',
-      skills: ['Product Strategy', 'Agile', 'Analytics', 'Leadership', 'Market Research'],
-      experience: '7 years',
-      portfolio: 'https://emma-davis.com',
-      profileImage: null, // Will be set when user uploads
-      resume: null, // Will be set when user uploads
-      workHistory: [
-        {
-          id: 1,
-          company: 'Innovation Startup',
-          position: 'Product Manager',
-          startDate: '2021-03',
-          endDate: '',
-          current: true,
-          description: 'Managing product roadmap and working with cross-functional teams to deliver user-centered solutions.'
-        }
-      ],
-      education: [
-        {
-          id: 1,
-          degree: 'Master of Business Administration',
-          institution: 'Stanford University',
-          year: '2020',
-          description: 'Specialized in technology management and product development'
-        }
-      ],
-      profileComplete: true, // For testing
-      role: 'jobSeeker'
-    }
-  ]
-};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -114,12 +17,11 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from localStorage on app start
+  // Load user from localStorage on app start, unless the session (the cookie's lifetime) has ended
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('authToken');
 
-    if (savedUser && savedToken) {
+    if (savedUser && !isSessionExpired()) {
       try {
         const parsedUser = JSON.parse(savedUser);
 
@@ -127,8 +29,7 @@ export const AuthProvider = ({ children }) => {
         // This fixes old cached data from before the bug was fixed
         if (parsedUser.email && !parsedUser.email.includes('@')) {
           console.warn('[Auth] Detected invalid cached user data. Clearing localStorage...');
-          localStorage.removeItem('user');
-          localStorage.removeItem('authToken');
+          clearSession();
           setIsLoading(false);
           return;
         }
@@ -136,22 +37,91 @@ export const AuthProvider = ({ children }) => {
         setUser(parsedUser);
       } catch (error) {
         console.error('Error loading saved user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
+        clearSession();
       }
+    } else if (savedUser) {
+      console.log('[Auth] Saved session has expired, user must log in again');
+      clearSession();
     }
     setIsLoading(false);
   }, []);
 
-  // Save user to localStorage whenever user changes
+  // Save user to localStorage whenever user changes. Clearing is done by logout, expiry and the 401 handler only:
+  // user is also null on the first render after a reload, and clearing then would delete the token being restored.
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-      localStorage.removeItem('authToken');
     }
   }, [user]);
+
+  // Log out automatically when the token expires. ProtectedRoute then sends the user to /login.
+  useEffect(() => {
+    const expiresAt = user ? getExpiresAt() : null;
+    if (expiresAt === null) {
+      return undefined;
+    }
+    const logoutAtExpiry = () => {
+      console.log('[Auth] Session expired, logging out');
+      clearSession();
+      setUser(null);
+    };
+    const timeoutId = setTimeout(logoutAtExpiry, Math.max(expiresAt - Date.now(), 0));
+    return () => clearTimeout(timeoutId);
+  }, [user]);
+
+  /**
+   * Logs the user in from a login or register response: stores the token, builds the user and,
+   * for job seekers, checks whether the profile is complete.
+   */
+  const startSession = async (data) => {
+    const { expiresAt, user: userData } = data;
+
+    // The JWT itself arrived in an HttpOnly cookie; only remember when it stops being accepted
+    saveSession(expiresAt);
+
+    // Create user object with role from backend
+    // Backend UserResponse contains: userId, name, email, mobileNumber, role
+    // Role values from backend: ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN
+    const userWithRole = {
+      ...userData,
+      phone: userData.mobileNumber, // Map mobileNumber to phone for frontend consistency
+      role: userData.role, // Use the role from the backend (ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN)
+      profileComplete: false // Default to false, will be checked for job seekers
+    };
+
+    console.log('[Auth] Login successful, user:', userWithRole);
+
+    // For job seekers, check if profile is complete
+    if (userData.role === 'ROLE_JOB_SEEKER') {
+      try {
+        const { getProfile } = await import('../services/profileService');
+        const profileData = await getProfile();
+
+        // Check if profile has all required fields
+        const isComplete = !!(
+          profileData &&
+          profileData.jobTitle &&
+          profileData.location &&
+          profileData.experienceLevel &&
+          profileData.professionalBio &&
+          profileData.profilePictureName &&
+          profileData.resumeName
+        );
+
+        userWithRole.profileComplete = isComplete;
+        console.log('[Auth] Profile completeness checked:', isComplete);
+      } catch (error) {
+        console.error('[Auth] Error checking profile completeness:', error);
+        // If error, keep profileComplete as false
+      }
+    } else {
+      // Employers don't need profile completion
+      userWithRole.profileComplete = true;
+    }
+
+    setUser(userWithRole);
+    return userWithRole;
+  };
 
   const login = async (email, password, userType) => {
     setIsLoading(true);
@@ -160,64 +130,20 @@ export const AuthProvider = ({ children }) => {
       console.log('[Auth] Attempting login with:', { email, userType });
 
       // Call backend authentication API
+      // Field names match LoginRequest in the OpenAPI spec
       const response = await httpClient.post(API_ENDPOINTS.LOGIN, {
-        username: email,
-        password: password
+        email,
+        password
       });
 
       console.log('[Auth] Login response:', response.data);
 
-      if (response.data && response.data.jwtToken) {
-        const { jwtToken, user: userData, message } = response.data;
-
-        // Store JWT token in localStorage
-        localStorage.setItem('authToken', jwtToken);
-
-        // Create user object with role from backend
-        // Backend UserDto contains: userId, name, email, mobileNumber, role
-        // Role values from backend: ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN
-        const userWithRole = {
-          ...userData,
-          phone: userData.mobileNumber, // Map mobileNumber to phone for frontend consistency
-          role: userData.role, // Use the role from the backend (ROLE_JOB_SEEKER, ROLE_EMPLOYER, ROLE_ADMIN)
-          profileComplete: false // Default to false, will be checked for job seekers
-        };
-
-        console.log('[Auth] Login successful, user:', userWithRole);
-
-        // For job seekers, check if profile is complete
-        if (userData.role === 'ROLE_JOB_SEEKER') {
-          try {
-            const { getProfile } = await import('../services/profileService');
-            const profileData = await getProfile();
-
-            // Check if profile has all required fields
-            const isComplete = !!(
-              profileData &&
-              profileData.jobTitle &&
-              profileData.location &&
-              profileData.experienceLevel &&
-              profileData.professionalBio &&
-              profileData.profilePictureName &&
-              profileData.resumeName
-            );
-
-            userWithRole.profileComplete = isComplete;
-            console.log('[Auth] Profile completeness checked:', isComplete);
-          } catch (error) {
-            console.error('[Auth] Error checking profile completeness:', error);
-            // If error, keep profileComplete as false
-          }
-        } else {
-          // Employers don't need profile completion
-          userWithRole.profileComplete = true;
-        }
-
-        setUser(userWithRole);
+      if (response.data?.user) {
+        const userWithRole = await startSession(response.data);
         setIsLoading(false);
         return { success: true, user: userWithRole };
       } else {
-        console.error('[Auth] Invalid response - missing jwtToken');
+        console.error('[Auth] Invalid response - missing user');
         setIsLoading(false);
         return { success: false, error: 'Invalid response from server' };
       }
@@ -226,8 +152,9 @@ export const AuthProvider = ({ children }) => {
       console.error('[Auth] Login error:', error);
 
       if (error.response) {
-        // Server responded with error
-        const errorMessage = error.response.data?.message
+        // Server responded with error; the backend sends RFC 9457 problem details, whose message is in "detail"
+        const errorMessage = error.response.data?.detail
+          || error.response.data?.message
           || error.response.data?.error
           || `Authentication failed (${error.response.status})`;
 
@@ -268,7 +195,7 @@ export const AuthProvider = ({ children }) => {
         mobileNumber: userData.mobileNumber
       });
 
-      // Call backend registration API
+      // Field names match RegisterRequest in the OpenAPI spec. No role: every new account is a job seeker.
       const response = await httpClient.post(API_ENDPOINTS.REGISTER, {
         name: userData.name,
         email: userData.email,
@@ -276,20 +203,13 @@ export const AuthProvider = ({ children }) => {
         password: userData.password
       });
 
-      console.log('[Auth] Registration response:', response.data);
-
-      // Registration successful
+      // The backend logs the user in on registration: same token and user as a login
+      const userWithRole = await startSession(response.data);
       setIsLoading(false);
-
-      // Backend returns "Registration successful" as plain text or object
-      const successMessage = typeof response.data === 'string'
-        ? response.data
-        : (response.data?.message || 'Registration successful! You can now login.');
-
       return {
         success: true,
-        message: successMessage,
-        data: response.data
+        message: response.data?.message,
+        user: userWithRole
       };
 
     } catch (error) {
@@ -303,20 +223,19 @@ export const AuthProvider = ({ children }) => {
           data: error.response.data
         });
 
-        // Check if response contains field-specific errors (from backend validation)
+        // The backend sends RFC 9457 problem details; field problems are listed in "errors"
+        // (e.g. {email: "An account with this email already exists"} or a breached password)
         const errorData = error.response.data;
-
-        // If it's an object with field names, it's field-specific validation errors
-        if (errorData && typeof errorData === 'object' && !errorData.message) {
+        if (errorData?.errors && typeof errorData.errors === 'object') {
           return {
             success: false,
-            fieldErrors: errorData // {email: "...", mobileNumber: "...", password: "..."}
+            fieldErrors: errorData.errors
           };
         }
 
         // Otherwise, it's a general error message
-        const errorMessage = errorData?.message
-          || errorData?.error
+        const errorMessage = errorData?.detail
+          || errorData?.message
           || (typeof errorData === 'string' ? errorData : null)
           || `Registration failed (${error.response.status})`;
 
@@ -360,19 +279,6 @@ export const AuthProvider = ({ children }) => {
         updatedAt: new Date().toISOString()
       };
 
-      // Update in dummy data
-      if (user.role === 'employer') {
-        const userIndex = DUMMY_USERS.employers.findIndex(u => u.id === user.id);
-        if (userIndex !== -1) {
-          DUMMY_USERS.employers[userIndex] = { ...DUMMY_USERS.employers[userIndex], ...updatedUser };
-        }
-      } else {
-        const userIndex = DUMMY_USERS.jobSeekers.findIndex(u => u.id === user.id);
-        if (userIndex !== -1) {
-          DUMMY_USERS.jobSeekers[userIndex] = { ...DUMMY_USERS.jobSeekers[userIndex], ...updatedUser };
-        }
-      }
-
       setUser(updatedUser);
       setIsLoading(false);
       return { success: true, user: updatedUser };
@@ -393,10 +299,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    clearSession();
+    try {
+      // The token cookie is HttpOnly, so only the backend can delete it
+      await httpClient.post(API_ENDPOINTS.LOGOUT);
+    } catch (error) {
+      console.warn('[Auth] Logout request failed; the cookie expires on its own', error);
+    }
   };
 
   const value = {

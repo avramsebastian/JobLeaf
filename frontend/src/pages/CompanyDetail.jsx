@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useCompanies } from '../contexts/CompaniesContext'
 import { useJobsData } from '../contexts/JobsDataContext'
+import { safeUrl } from '../utils/safeUrl'
 
 const CompanyDetail = () => {
   const { id } = useParams()
@@ -490,9 +491,9 @@ const CompanyDetail = () => {
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 dark:border-gray-700/20 p-8">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Get In Touch</h3>
               <div className="space-y-4">
-                {company.website && (
+                {safeUrl(company.website) && (
                   <a
-                    href={company.website}
+                    href={safeUrl(company.website)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-semibold text-center"

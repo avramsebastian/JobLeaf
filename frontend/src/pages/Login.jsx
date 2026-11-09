@@ -11,7 +11,6 @@ const Login = () => {
   });
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [showDemoCredentials, setShowDemoCredentials] = useState(false);
 
   const { login, isLoading } = useAuth();
   const { theme } = useTheme();
@@ -55,28 +54,6 @@ const Login = () => {
     }));
   };
 
-  const fillDemoCredentials = (type) => {
-    if (type === "employer") {
-      setFormData({
-        email: "sanjana@gmail.com",
-        password: "EazyBytes@1803",
-        userType: "employer",
-      });
-    } else if (type === "admin") {
-      setFormData({
-        email: "admin@gmail.com",
-        password: "EazyBytes@1803",
-        userType: "admin",
-      });
-    } else {
-      setFormData({
-        email: "john@gmail.com",
-        password: "EazyBytes@1803",
-        userType: "jobSeeker",
-      });
-    }
-  };
-
   return (
     <div
       className={`min-h-[calc(100vh-5rem)] ${theme === "dark"
@@ -110,77 +87,6 @@ const Login = () => {
             >
               Sign in to your JobLeaf account
             </p>
-          </div>
-
-          {/* Demo Credentials Toggle */}
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => setShowDemoCredentials(!showDemoCredentials)}
-              className={`w-full p-3 ${theme === "dark"
-                  ? "bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-700 text-blue-300 hover:from-blue-800/30 hover:to-purple-800/30"
-                  : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-700 hover:from-blue-100 hover:to-purple-100"
-                } rounded-xl transition-all duration-300 text-sm font-medium`}
-            >
-              {showDemoCredentials ? "Hide" : "Show"} Demo Credentials
-            </button>
-
-            {showDemoCredentials && (
-              <div
-                className={`mt-4 p-4 ${theme === "dark"
-                    ? "bg-gradient-to-r from-gray-800 to-blue-900/30 border border-gray-700"
-                    : "bg-gradient-to-r from-gray-50 to-blue-50 border border-gray-200"
-                  } rounded-xl`}
-              >
-                <p
-                  className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"
-                    } mb-3 font-medium`}
-                >
-                  Try these demo accounts:
-                </p>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials("employer")}
-                    className={`w-full p-2 text-left ${theme === "dark"
-                        ? "bg-gray-700 border border-gray-600 hover:bg-gray-600"
-                        : "bg-white border border-gray-200 hover:bg-gray-50"
-                      } rounded-lg transition-colors text-sm`}
-                  >
-                    <div className="font-medium text-purple-700">Employer</div>
-                    <div className="text-gray-500">
-                      sanjana@gmail.com / EazyBytes@1803
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials("jobSeeker")}
-                    className={`w-full p-2 text-left ${theme === "dark"
-                        ? "bg-gray-700 border border-gray-600 hover:bg-gray-600"
-                        : "bg-white border border-gray-200 hover:bg-gray-50"
-                      } rounded-lg transition-colors text-sm`}
-                  >
-                    <div className="font-medium text-blue-700">Job Seeker</div>
-                    <div className="text-gray-500">
-                      john@gmail.com / EazyBytes@1803
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials("admin")}
-                    className={`w-full p-2 text-left ${theme === "dark"
-                        ? "bg-gray-700 border border-gray-600 hover:bg-gray-600"
-                        : "bg-white border border-gray-200 hover:bg-gray-50"
-                      } rounded-lg transition-colors text-sm`}
-                  >
-                    <div className="font-medium text-blue-700">Admin</div>
-                    <div className="text-gray-500">
-                      admin@gmail.com / EazyBytes@1803
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
