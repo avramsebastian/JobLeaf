@@ -55,8 +55,8 @@ httpClient.interceptors.request.use(
             throw new Error("Failed to retrieve CSRF token from cookies");
           }
         } catch (error) {
-          // The backend does not use CSRF tokens yet (JWT in the Authorization header), so a failed token fetch
-          // must not cancel the real request. If CSRF is enabled later, the backend rejects the request itself (403).
+          // Don't cancel the request here: without a token the backend's CsrfFilter rejects it with a 403
+          // problem response, which the calling page shows like any other error.
           console.warn("[CSRF Token] Could not fetch a CSRF token, continuing without it", error.response?.status);
         }
       }

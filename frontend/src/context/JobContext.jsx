@@ -84,8 +84,8 @@ export const JobProvider = ({ children }) => {
       
       // Load employer data
       if (user.role === 'employer') {
-        const savedPostedJobs = localStorage.getItem(`postedJobs_${user.id}`);
-        const savedAllApplications = localStorage.getItem(`allApplications_${user.id}`);
+        const savedPostedJobs = localStorage.getItem(`postedJobs_${user.userId}`);
+        const savedAllApplications = localStorage.getItem(`allApplications_${user.userId}`);
         
         if (savedPostedJobs) {
           try {
@@ -117,14 +117,14 @@ export const JobProvider = ({ children }) => {
   // Save posted jobs to localStorage whenever it changes
   useEffect(() => {
     if (user && user.role === 'employer' && postedJobs.length >= 0) {
-      localStorage.setItem(`postedJobs_${user.id}`, JSON.stringify(postedJobs));
+      localStorage.setItem(`postedJobs_${user.userId}`, JSON.stringify(postedJobs));
     }
   }, [postedJobs, user]);
 
   // Save all applications to localStorage whenever it changes
   useEffect(() => {
     if (user && user.role === 'employer' && allApplications.length >= 0) {
-      localStorage.setItem(`allApplications_${user.id}`, JSON.stringify(allApplications));
+      localStorage.setItem(`allApplications_${user.userId}`, JSON.stringify(allApplications));
     }
   }, [allApplications, user]);
 
@@ -265,7 +265,7 @@ export const JobProvider = ({ children }) => {
       ...jobData,
       company: user.company,
       companyLogo: '🏢', // Default company logo
-      postedBy: user.id,
+      postedBy: user.userId,
       postedDate: new Date().toISOString(),
       applicationsCount: 0,
       featured: false,
