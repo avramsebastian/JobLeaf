@@ -1,7 +1,12 @@
 package com.seby.jobleaf.domain.port.out.contact;
 
 import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.ContactSort;
+import com.seby.jobleaf.domain.model.ContactStatus;
+import com.seby.jobleaf.domain.model.page.PageQuery;
+import com.seby.jobleaf.domain.model.page.PageResult;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,4 +33,19 @@ public interface ContactRepositoryPort {
      * @return the contact with the given identifier.
      */
     Optional<Contact> findById(UUID id);
+
+    /**
+     * @return all contacts with the given status, oldest first
+     */
+    List<Contact> findAllByStatus(ContactStatus status);
+
+    /**
+     * @return all contacts with the given status in the given order
+     */
+    List<Contact> findAllByStatus(ContactStatus status, ContactSort sort);
+
+    /**
+     * @return one page of the contacts with the given status in the given order
+     */
+    PageResult<Contact> findAllByStatus(ContactStatus status, ContactSort sort, PageQuery page);
 }

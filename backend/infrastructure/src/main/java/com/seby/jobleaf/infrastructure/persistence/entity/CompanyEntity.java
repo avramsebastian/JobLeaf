@@ -57,10 +57,7 @@ public class CompanyEntity extends BaseEntity {
     @Column(name = "website", length = 500)
     private String website;
 
-    /**
-     * Lazily loaded; {@link BatchSize} loads the jobs of several companies per query to avoid N+1 selects.
-     */
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
-    @BatchSize(size = 50)
+    @BatchSize(size = 10)
     private List<JobEntity> jobs = new ArrayList<>();
 }

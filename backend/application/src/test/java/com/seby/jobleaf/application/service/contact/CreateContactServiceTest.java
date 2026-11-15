@@ -71,7 +71,7 @@ class CreateContactServiceTest {
         CreateContactCommand command = new CreateContactCommand(
                 null, "John Doe", "john@example.com", "Employer", "Job Posting", "I have a question.");
         Contact persisted = new Contact(UUID.randomUUID(), "John Doe", "john@example.com", "Employer",
-                "Job Posting", "I have a question.", Instant.now(), SystemActor.ID, Instant.now(), SystemActor.ID);
+                "Job Posting", "I have a question.", com.seby.jobleaf.domain.model.ContactStatus.NEW, Instant.now(), SystemActor.ID, Instant.now(), SystemActor.ID);
         when(contactRepositoryPort.save(any(Contact.class))).thenReturn(persisted);
 
         // When

@@ -1,6 +1,8 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
 import com.seby.jobleaf.infrastructure.web.security.filter.JwtTokenValidatorFilter;
+import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitFilter;
+import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitRule;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,9 +22,11 @@ import org.springframework.security.web.authentication.password.HaveIBeenPwnedRe
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -62,12 +66,16 @@ public class JobLeafSecurityConfig {
     @Bean
     SecurityFilterChain customSecurityFilterChain(HttpSecurity http,
                                                   @Qualifier("publicPaths") List<String> publicPaths,
+                                                  @Qualifier("adminPaths") List<String> adminPaths,
                                                   @Qualifier("securedPaths") List<String> securedPaths,
                                                   @Qualifier("infrastructurePaths") List<String> infrastructurePaths,
                                                   ProblemDetailSecurityHandler problemDetailSecurityHandler,
                                                   SecretKey jwtSigningKey,
                                                   AccessTokenCookies accessTokenCookies,
-                                                  @Value("${jobleaf.jwt.header:Authorization}") String jwtHeader) {
+                                                  @Value("${jobleaf.jwt.header:Authorization}") String jwtHeader,
+                                                  @Value("${jobleaf.rate-limit.enabled:true}") boolean rateLimitEnabled,
+                                                  @Qualifier("handlerExceptionResolver")
+                                                  HandlerExceptionResolver handlerExceptionResolver) {
         return http.csrf(csrfConfig -> csrfConfig
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
@@ -78,6 +86,7 @@ public class JobLeafSecurityConfig {
                     requests.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll();
                     infrastructurePaths.forEach(path -> requests.requestMatchers(path).permitAll());
                     publicPaths.forEach(path -> requests.requestMatchers(path).permitAll());
+                    adminPaths.forEach(path -> requests.requestMatchers(path).hasRole("ADMIN"));
                     securedPaths.forEach(path -> requests.requestMatchers(path).authenticated());
                     requests.anyRequest().denyAll();
                 })
@@ -86,6 +95,8 @@ public class JobLeafSecurityConfig {
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .permissionsPolicyHeader(permissions -> permissions.policy(PERMISSIONS_POLICY)))
+                .addFilterBefore(new RateLimitFilter(rateLimitEnabled ? RateLimitRule.DEFAULTS : List.of(),
+                        handlerExceptionResolver), CsrfFilter.class)
                 .addFilterBefore(new JwtTokenValidatorFilter(jwtHeader, jwtSigningKey, publicPaths,
                         problemDetailSecurityHandler, accessTokenCookies), BasicAuthenticationFilter.class)
                 .formLogin(AbstractHttpConfigurer::disable)

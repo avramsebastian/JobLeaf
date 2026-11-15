@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
 import httpClient from "../../config/httpClient";
 import { API_ENDPOINTS } from "../../config/api";
 import { clearSession, isSessionExpired } from "../../utils/authSession";
+
+// Matches the backend ContactStatus enum: NEW until an admin closes the message
+const STATUS_NEW = "NEW";
 
 const ContactMessages = () => {
   const { theme } = useTheme();
@@ -23,11 +27,15 @@ const ContactMessages = () => {
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
-    console.log("ContactMessages component mounted, fetching messages...");
-    fetchMessages();
+    // Cancel the request when the effect is cleaned up. In development <StrictMode> mounts the page twice, so
+    // without this the same page was requested twice; it also drops answers for old filters when the user
+    // changes sort or page quickly
+    const controller = new AbortController();
+    fetchMessages(controller.signal);
+    return () => controller.abort();
   }, [sortBy, sortDir, pageNumber, pageSize]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (signal) => {
     try {
       console.log("Starting fetchMessages...");
       console.log("API Endpoint:", API_ENDPOINTS.ADMIN_CONTACTS);
@@ -49,7 +57,8 @@ const ContactMessages = () => {
           pageSize: pageSize,
           sortBy: sortBy,
           sortDir: sortDir
-        }
+        },
+        signal
       });
 
       // Check if we got HTML instead of JSON (authentication failed)
@@ -75,17 +84,30 @@ const ContactMessages = () => {
       console.log("Total elements:", pageData.totalElements);
       console.log("Total pages:", pageData.totalPages);
 
+      // The page we are on no longer exists (e.g. the only message on the last page was just closed): go to the
+      // new last page. Changing pageNumber re-runs the useEffect, which loads that page
+      if (contactsData.length === 0 && pageNumber > 0 && pageData.totalPages > 0) {
+        setPageNumber(pageData.totalPages - 1);
+        return;
+      }
+
       setMessages(contactsData);
       setTotalPages(pageData.totalPages);
       setTotalElements(pageData.totalElements);
       setError("");
     } catch (err) {
+      // Cancelled on purpose (see useEffect): not an error, a newer request is already running
+      if (axios.isCancel(err)) {
+        return;
+      }
       console.error("Error fetching contact messages:", err);
       console.error("Error details:", err.response || err.message);
       setError("Failed to fetch contact messages. Please try again.");
       setMessages([]);
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -360,7 +382,7 @@ const ContactMessages = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <span
-                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${message.status === "OPEN"
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${message.status === STATUS_NEW
                                 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                 : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400"
                                 }`}
@@ -372,7 +394,7 @@ const ContactMessages = () => {
                             {formatDate(message.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {message.status === "OPEN" && (
+                            {message.status === STATUS_NEW && (
                               <button
                                 onClick={(e) =>
                                   handleCloseMessage(message.id, e)
@@ -427,7 +449,7 @@ const ContactMessages = () => {
                                     </label>
                                     <p className="text-gray-900 dark:text-white">
                                       <span
-                                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${message.status === "OPEN"
+                                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${message.status === STATUS_NEW
                                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                           : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400"
                                           }`}

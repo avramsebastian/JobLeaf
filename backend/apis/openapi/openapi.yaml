@@ -74,6 +74,102 @@ paths:
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
+  /contacts/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgs
+      summary: List new contact messages.
+      description: Returns all contact messages with status NEW, oldest first. Requires ROLE_ADMIN.
+      parameters: [ ]
+      responses:
+        '200':
+          description: New contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContactResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/sort/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgsWithSort
+      summary: List new contact messages, sorted.
+      description: Returns all contact messages with status NEW in the requested order. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: New contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContactResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/page/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgsWithPaginationAndSort
+      summary: List new contact messages, one page at a time.
+      description: Returns one page of the contact messages with status NEW in the requested order. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: Page of new contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ContactPageResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/{id}/status/admin:
+    patch:
+      tags: [Contact]
+      operationId: closeContactMsg
+      summary: Close a contact message.
+      description: Sets the status of the contact message to CLOSED. Closing an already closed message changes nothing. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact message closed.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: string
+                example: "Contact message closed successfully"
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
   /auth/login/public:
     post:
       tags: [Authentication]
@@ -216,6 +312,53 @@ components:
       description: Unique company identifier.
       schema:
         $ref: '#/components/schemas/Uuid'
+
+    ContactId:
+      name: id
+      in: path
+      required: true
+      description: Unique contact identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    SortBy:
+      name: sortBy
+      in: query
+      required: false
+      description: Field to sort by.
+      schema:
+        type: string
+        enum: [createdAt, name, email, subject, userType, status]
+        default: createdAt
+    SortDir:
+      name: sortDir
+      in: query
+      required: false
+      description: Sort direction.
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+    PageNumber:
+      name: pageNumber
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Number of items per page.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 10
 
   schemas:
     Uuid:
@@ -658,6 +801,70 @@ components:
           $ref: '#/components/schemas/DateTime'
         updatedBy:
           $ref: '#/components/schemas/Uuid'
+
+    ContactStatus:
+      type: string
+      enum: [NEW, CLOSED]
+      description: NEW until an admin closes the message.
+
+    ContactResponse:
+      type: object
+      additionalProperties: false
+      required: [id, name, email, userType, subject, message, status, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          example: "Jane Doe"
+        email:
+          type: string
+          example: "jane@example.com"
+        userType:
+          type: string
+          example: "Employer"
+        subject:
+          type: string
+          example: "Subject"
+        message:
+          type: string
+          example: "Message"
+        status:
+          $ref: '#/components/schemas/ContactStatus'
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
+    ContactPageResponse:
+      type: object
+      additionalProperties: false
+      description: One page of contact messages, plus the numbers needed to show a pager.
+      required: [content, pageNumber, pageSize, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactResponse'
+        pageNumber:
+          type: integer
+          format: int32
+          description: Zero-based index of this page.
+        pageSize:
+          type: integer
+          format: int32
+          description: Requested number of items per page.
+        totalElements:
+          type: integer
+          format: int64
+          description: Number of matching items over all pages.
+        totalPages:
+          type: integer
+          format: int32
+        first:
+          type: boolean
+        last:
+          type: boolean
 
     CreateContactResponse:
       type: object

@@ -26,6 +26,11 @@
             <artifactId>job-leaf-application</artifactId>
         </dependency>
 
+        <!-- Rate limiting (in memory token buckets) -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+        </dependency>
         <!-- Security -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

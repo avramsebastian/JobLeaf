@@ -53,7 +53,7 @@ public class CompanyRepositoryAdapter implements CompanyRepositoryPort {
     @Transactional(readOnly = true)
     public List<Company> findAll() {
         long start = System.currentTimeMillis();
-        var companies = companyJpaRepository.findAll().stream().map(mapper::toDomain).toList();
+        var companies = companyJpaRepository.findAllWithJobsByStatus("ACTIVE").stream().map(mapper::toDomain).toList();
         log.debug("Loaded {} companies with their jobs from database in {}ms",
                 companies.size(), System.currentTimeMillis() - start);
         return companies;

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
 import { clearSession, getExpiresAt, isSessionExpired, saveSession } from '../utils/authSession';
+import { getRateLimitMessage } from '../utils/rateLimit';
 
 const AuthContext = createContext();
 
@@ -153,7 +154,8 @@ export const AuthProvider = ({ children }) => {
 
       if (error.response) {
         // Server responded with error; the backend sends RFC 9457 problem details, whose message is in "detail"
-        const errorMessage = error.response.data?.detail
+        const errorMessage = getRateLimitMessage(error)
+          || error.response.data?.detail
           || error.response.data?.message
           || error.response.data?.error
           || `Authentication failed (${error.response.status})`;
@@ -234,7 +236,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         // Otherwise, it's a general error message
-        const errorMessage = errorData?.detail
+        const errorMessage = getRateLimitMessage(error)
+          || errorData?.detail
           || errorData?.message
           || (typeof errorData === 'string' ? errorData : null)
           || `Registration failed (${error.response.status})`;

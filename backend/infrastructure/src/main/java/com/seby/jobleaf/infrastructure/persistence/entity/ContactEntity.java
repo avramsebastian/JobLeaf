@@ -1,7 +1,10 @@
 package com.seby.jobleaf.infrastructure.persistence.entity;
 
+import com.seby.jobleaf.domain.model.ContactStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -35,4 +38,9 @@ public class ContactEntity extends BaseEntity {
 
     @Column(name = "message", nullable = false, length = 255)
     private String message;
+
+    /** Stored as text ("NEW", "CLOSED"), never as the ordinal, so reordering the enum cannot corrupt the data. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private ContactStatus status = ContactStatus.NEW;
 }

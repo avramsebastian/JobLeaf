@@ -26,6 +26,20 @@ public class PathsConfig {
         );
     }
 
+    /**
+     * Only users with {@code ROLE_ADMIN} may call these. Spring path patterns use {@code {id}} for a path variable
+     * (not {@code ${id}}, which would be matched literally and never apply).
+     */
+    @Bean(name = "adminPaths")
+    public List<String> adminPaths() {
+        return List.of(
+                "/jobleaf/contacts/admin",
+                "/jobleaf/contacts/sort/admin",
+                "/jobleaf/contacts/page/admin",
+                "/jobleaf/contacts/{id}/status/admin"
+        );
+    }
+
     @Bean(name = "securedPaths")
     public List<String> securedPaths() {
         return List.of(

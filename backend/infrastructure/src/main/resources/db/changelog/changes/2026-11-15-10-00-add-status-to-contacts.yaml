@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-15-10-00-add-status-to-contacts
+      author: Seby
+      comment: "Adds the contact status (NEW until an admin closes it). Existing contacts become NEW."
+      changes:
+        - addColumn:
+            tableName: contacts
+            columns:
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: NEW
+                  constraints:
+                    nullable: false
+        - addColumn:
+            tableName: contacts_aud
+            columns:
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+      rollback:
+        - dropColumn:
+            tableName: contacts_aud
+            columnName: status
+        - dropColumn:
+            tableName: contacts
+            columnName: status
