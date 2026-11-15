@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import TurnstileWidget from '../components/TurnstileWidget';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +14,8 @@ const Register = () => {
   });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const captchaRef = useRef(null);
 
   const { register, isLoading } = useAuth();
   const { theme } = useTheme();
@@ -72,12 +75,14 @@ const Register = () => {
       return;
     }
 
-    const result = await register(formData);
+    const result = await register(formData, captchaToken);
 
     if (result.success) {
       // Registration logs the user in, so go straight into the app
       navigate('/', { replace: true });
     } else {
+      // The token was used up by this attempt: the user has to tick the box again
+      captchaRef.current?.reset();
       // Check if we have field-specific errors from backend
       if (result.fieldErrors) {
         // Backend returned field-specific validation errors
@@ -236,10 +241,18 @@ const Register = () => {
               </div>
             )}
 
-            {/* Register Button */}
+            {/* Cloudflare Turnstile: "Verify you are human" */}
+            <TurnstileWidget
+              ref={captchaRef}
+              action="register"
+              theme={theme === 'dark' ? 'dark' : 'light'}
+              onToken={setCaptchaToken}
+            />
+
+            {/* Register Button: only usable once the human check passed */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !captchaToken}
               className="w-full bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-primary-700 hover:to-purple-700 focus:ring-4 focus:ring-primary-300 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isLoading ? (

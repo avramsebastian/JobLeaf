@@ -4,6 +4,7 @@ import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
+import com.seby.jobleaf.infrastructure.web.security.captcha.CaptchaVerificationException;
 import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitExceededException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -139,6 +140,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * A client used up its requests ({@code RateLimitFilter}). {@code Retry-After} is the standard header for "when
      * may I try again"; {@code retryAfterSeconds} in the body is the same number, easy for the frontend to read.
      */
+    /**
+     * No "errors" map on purpose: the register page would try to show it under a form field that does not exist.
+     */
+    @ExceptionHandler(CaptchaVerificationException.class)
+    public ResponseEntity<ProblemDetail> handleCaptchaVerification(CaptchaVerificationException exception,
+                                                                   WebRequest request) {
+        log.debug("Captcha check failed for {}", instancePath(request));
+        return problem(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException exception,
                                                                  WebRequest request) {

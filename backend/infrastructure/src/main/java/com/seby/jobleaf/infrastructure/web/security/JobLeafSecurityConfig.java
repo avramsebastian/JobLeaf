@@ -1,5 +1,7 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
+import com.seby.jobleaf.infrastructure.web.security.captcha.CaptchaFilter;
+import com.seby.jobleaf.infrastructure.web.security.captcha.TurnstileCaptchaVerifier;
 import com.seby.jobleaf.infrastructure.web.security.filter.JwtTokenValidatorFilter;
 import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitFilter;
 import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitRule;
@@ -74,8 +76,11 @@ public class JobLeafSecurityConfig {
                                                   AccessTokenCookies accessTokenCookies,
                                                   @Value("${jobleaf.jwt.header:Authorization}") String jwtHeader,
                                                   @Value("${jobleaf.rate-limit.enabled:true}") boolean rateLimitEnabled,
+                                                  @Value("${jobleaf.captcha.enabled:true}") boolean captchaEnabled,
+                                                  @Value("${jobleaf.captcha.secret:}") String captchaSecret,
                                                   @Qualifier("handlerExceptionResolver")
                                                   HandlerExceptionResolver handlerExceptionResolver) {
+        CaptchaFilter captchaFilter = captchaFilter(captchaEnabled, captchaSecret, handlerExceptionResolver);
         return http.csrf(csrfConfig -> csrfConfig
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
@@ -97,6 +102,7 @@ public class JobLeafSecurityConfig {
                         .permissionsPolicyHeader(permissions -> permissions.policy(PERMISSIONS_POLICY)))
                 .addFilterBefore(new RateLimitFilter(rateLimitEnabled ? RateLimitRule.DEFAULTS : List.of(),
                         handlerExceptionResolver), CsrfFilter.class)
+                .addFilterAfter(captchaFilter, CsrfFilter.class)
                 .addFilterBefore(new JwtTokenValidatorFilter(jwtHeader, jwtSigningKey, publicPaths,
                         problemDetailSecurityHandler, accessTokenCookies), BasicAuthenticationFilter.class)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -105,6 +111,21 @@ public class JobLeafSecurityConfig {
                         .authenticationEntryPoint(problemDetailSecurityHandler)
                         .accessDeniedHandler(problemDetailSecurityHandler))
                 .build();
+    }
+
+    /**
+     * Turnstile check on login and register. Off (no protected paths) when {@code jobleaf.captcha.enabled=false},
+     * e.g. in tests; when on, a missing secret stops the application from starting.
+     */
+    private static CaptchaFilter captchaFilter(boolean enabled, String secret, HandlerExceptionResolver resolver) {
+        if (!enabled) {
+            return new CaptchaFilter(List.of(), (token, ip) -> true, resolver);
+        }
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("jobleaf.captcha.secret (TURNSTILE_SECRET_KEY) is not set");
+        }
+        var verifier = new TurnstileCaptchaVerifier(secret);
+        return new CaptchaFilter(CaptchaFilter.PROTECTED_PATHS, verifier::verify, resolver);
     }
 
     @Bean
