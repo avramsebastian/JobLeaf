@@ -37,7 +37,6 @@ public class CreateCompanyService implements CreateCompanyUseCase {
             log.warn("Cannot create company: the name {} is taken", details.name());
             throw new CompanyAlreadyExistsException(details.name());
         }
-        // createdBy is replaced by the logged-in admin through JPA auditing (CurrentActor)
         var created = companyRepositoryPort.create(Company.create(UUID.randomUUID(), details, SystemActor.ID));
         log.info("Created company {} ({})", created.id(), created.name());
         return created;

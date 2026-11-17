@@ -34,7 +34,10 @@ public class PathsConfig {
                 "/jobleaf/contacts/page/admin",
                 "/jobleaf/contacts/{id}/status/admin",
                 "/jobleaf/companies/admin",
-                "/jobleaf/companies/{id}/admin"
+                "/jobleaf/companies/{id}/admin",
+                "/jobleaf/users/search/admin",
+                "/jobleaf/users/{userId}/role/employer/admin",
+                "/jobleaf/users/{userId}/company/{companyId}/admin"
         );
     }
 

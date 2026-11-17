@@ -19,6 +19,8 @@ tags:
     description: Companies management endpoints.
   - name: Contact
     description: Contacts management endpoints.
+  - name: User
+    description: User management endpoints for the admin.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -271,6 +273,92 @@ paths:
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
+  /users/search/admin:
+    get:
+      tags: [ User ]
+      operationId: searchUserByEmail
+      summary: Find a user by email.
+      description: Returns the user with this email address (case does not matter). Requires ROLE_ADMIN.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Email address of the user.
+          schema:
+            $ref: '#/components/schemas/Email'
+      responses:
+        '200':
+          description: User found.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /users/{userId}/role/employer/admin:
+    patch:
+      tags: [ User ]
+      operationId: elevateToEmployer
+      summary: Make a job seeker an employer.
+      description: >-
+        Changes the role of a job seeker to ROLE_EMPLOYER. An employer stays unchanged; an admin can not be
+        changed (409). The user gets the new role in the token at the next login. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user, now an employer.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /users/{userId}/company/{companyId}/admin:
+    patch:
+      tags: [ User ]
+      operationId: assignCompanyToEmployer
+      summary: Assign a company to an employer.
+      description: >-
+        Links the employer to the company (replaces a previous company). Only employers can be assigned (409);
+        the user and the company must exist (404). Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: companyId
+          in: path
+          required: true
+          description: Unique company identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The employer with the company assigned.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
   /auth/login/public:
     post:
       tags: [Authentication]
@@ -419,6 +507,13 @@ components:
       in: path
       required: true
       description: Unique company identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Unique user identifier.
       schema:
         $ref: '#/components/schemas/Uuid'
     ContactId:

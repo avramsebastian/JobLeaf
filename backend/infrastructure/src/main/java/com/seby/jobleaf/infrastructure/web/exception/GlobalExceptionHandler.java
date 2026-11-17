@@ -3,6 +3,7 @@ package com.seby.jobleaf.infrastructure.web.exception;
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
+import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
 import com.seby.jobleaf.infrastructure.web.security.captcha.CaptchaVerificationException;
@@ -86,6 +87,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             default -> "Authentication is required to access this resource";
         };
         return problem(HttpStatus.UNAUTHORIZED, detail, request);
+    }
+
+    /**
+     * The user's role does not allow the change (an admin made employer, a non-employer given a company).
+     */
+    @ExceptionHandler(UserRoleConflictException.class)
+    public ResponseEntity<ProblemDetail> handleUserRoleConflict(UserRoleConflictException exception,
+                                                                WebRequest request) {
+        log.debug("User role conflict: {}", exception.getMessage());
+        return problem(HttpStatus.CONFLICT, exception.getMessage(), request);
     }
 
     @ExceptionHandler(CompanyAlreadyExistsException.class)
