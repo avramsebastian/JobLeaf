@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useTheme } from '../../context/ThemeContext';
-import { useCompanies } from '../../contexts/CompaniesContext';
+import axios from 'axios';
 import httpClient from '../../config/httpClient';
 import { API_ENDPOINTS } from '../../config/api';
 
+// The backend answers errors as problem details: the message is in "detail"
+const getErrorMessage = (err, fallback) => err.response?.data?.detail || fallback;
+
 const EmployerManagement = () => {
-  const { theme } = useTheme();
-  const { companies: contextCompanies, loading: companiesLoading } = useCompanies();
+  // All companies from the admin endpoint. The public list (CompaniesContext) only has companies with active
+  // jobs, so a new company could never be assigned to its first employer
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -18,8 +22,22 @@ const EmployerManagement = () => {
   const [searchError, setSearchError] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Use companies from context
-  const companies = contextCompanies;
+  useEffect(() => {
+    const controller = new AbortController();
+    httpClient.get(API_ENDPOINTS.ADMIN_COMPANIES, { signal: controller.signal })
+      .then((response) => setCompanies(Array.isArray(response.data) ? response.data : []))
+      .catch((err) => {
+        if (!axios.isCancel(err)) {
+          setError(getErrorMessage(err, 'Failed to load companies'));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setCompaniesLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, []);
 
   const handleAssignCompany = async () => {
     setError('');
@@ -32,14 +50,15 @@ const EmployerManagement = () => {
 
     try {
       setIsAssigning(true);
-      const response = await httpClient.put(API_ENDPOINTS.ASSIGN_COMPANY_TO_EMPLOYER(searchedUser.userId), {
-        companyId: parseInt(selectedCompanyId)
-      });
+      // Company ids are UUID strings: sent as they are, in the path
+      const response = await httpClient.patch(
+        API_ENDPOINTS.ASSIGN_COMPANY_TO_EMPLOYER(searchedUser.userId, selectedCompanyId)
+      );
       setSuccess(`Successfully assigned company to ${searchedUser.name}`);
       setSearchedUser(response.data);
     } catch (err) {
       console.error('Error assigning company:', err);
-      setError(err.response?.data?.message || 'Failed to assign company');
+      setError(getErrorMessage(err, 'Failed to assign company'));
     } finally {
       setIsAssigning(false);
     }
@@ -67,7 +86,7 @@ const EmployerManagement = () => {
       setSearchedUser(response.data);
       // Pre-populate company dropdown if user already has a company assigned
       if (response.data.companyId) {
-        setSelectedCompanyId(response.data.companyId.toString());
+        setSelectedCompanyId(response.data.companyId);
       }
       setSearchError('');
     } catch (err) {
@@ -75,7 +94,7 @@ const EmployerManagement = () => {
       if (err.response?.status === 404) {
         setSearchError('User not found with this email address');
       } else {
-        setSearchError(err.response?.data?.message || 'Failed to search user');
+        setSearchError(getErrorMessage(err, 'Failed to search user'));
       }
       setSearchedUser(null);
     } finally {
@@ -88,12 +107,12 @@ const EmployerManagement = () => {
     setSuccess('');
 
     try {
-      const response = await httpClient.put(API_ENDPOINTS.ELEVATE_TO_EMPLOYER(userId));
+      const response = await httpClient.patch(API_ENDPOINTS.ELEVATE_TO_EMPLOYER(userId));
       setSuccess(`Successfully elevated ${response.data.name} to ROLE_EMPLOYER`);
       setSearchedUser(response.data);
     } catch (err) {
       console.error('Error elevating user:', err);
-      setError(err.response?.data?.message || 'Failed to elevate user to employer');
+      setError(getErrorMessage(err, 'Failed to elevate user to employer'));
     }
   };
 

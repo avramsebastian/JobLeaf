@@ -17,6 +17,12 @@ public interface JobLeafUserJpaRepository extends JpaRepository<JobLeafUserEntit
     @Query("select u from JobLeafUserEntity u join fetch u.role left join fetch u.company where u.email = :email")
     Optional<JobLeafUserEntity> findWithRoleByEmail(@Param("email") String email);
 
+    /**
+     * Same as {@link #findWithRoleByEmail}, by id.
+     */
+    @Query("select u from JobLeafUserEntity u join fetch u.role left join fetch u.company where u.id = :id")
+    Optional<JobLeafUserEntity> findWithRoleById(@Param("id") UUID id);
+
     boolean existsByEmail(String email);
 
     boolean existsByMobileNumber(String mobileNumber);

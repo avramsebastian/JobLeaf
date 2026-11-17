@@ -19,6 +19,8 @@ tags:
     description: Companies management endpoints.
   - name: Contact
     description: Contacts management endpoints.
+  - name: User
+    description: User management endpoints for the admin.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -46,6 +48,107 @@ paths:
         "429": { $ref: '#/components/responses/TooManyRequests' }
         default: { $ref: '#/components/responses/UnexpectedError' }
 
+  /companies/admin:
+    get:
+      tags: [ Company ]
+      operationId: listCompaniesForAdmin
+      summary: List all companies for the admin.
+      description: Returns every company with all its details but without jobs, sorted by name. Requires ROLE_ADMIN.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Companies retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyAdminResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ Company ]
+      operationId: createCompany
+      summary: Create a company.
+      description: Creates a company without jobs (employers add jobs later). The name must be unique. Requires ROLE_ADMIN.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CompanyRequest'
+      responses:
+        '201':
+          description: Company created successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CompanyAdminResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /companies/{id}/admin:
+    put:
+      tags: [ Company ]
+      operationId: updateCompany
+      summary: Update a company.
+      description: Replaces all details of the company; its jobs are not changed. The name must stay unique. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/CompanyPathId'
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CompanyRequest'
+      responses:
+        '200':
+          description: Company updated successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CompanyAdminResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    delete:
+      tags: [ Company ]
+      operationId: deleteCompany
+      summary: Delete a company.
+      description: Deletes the company together with its jobs. Employers assigned to it are kept, without a company. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/CompanyPathId'
+      responses:
+        '200':
+          description: Company deleted successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/DeleteCompanyResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
   /contacts/public:
     post:
       tags: [Contact]
@@ -71,6 +174,188 @@ paths:
         '403': {$ref: '#/components/responses/CsrfTokenMissing'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
         '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgs
+      summary: List new contact messages.
+      description: Returns all contact messages with status NEW, oldest first. Requires ROLE_ADMIN.
+      parameters: [ ]
+      responses:
+        '200':
+          description: New contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContactResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/sort/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgsWithSort
+      summary: List new contact messages, sorted.
+      description: Returns all contact messages with status NEW in the requested order. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: New contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContactResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/page/admin:
+    get:
+      tags: [Contact]
+      operationId: fetchNewContactMsgsWithPaginationAndSort
+      summary: List new contact messages, one page at a time.
+      description: Returns one page of the contact messages with status NEW in the requested order. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: Page of new contact messages retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ContactPageResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /contacts/{id}/status/admin:
+    patch:
+      tags: [Contact]
+      operationId: closeContactMsg
+      summary: Close a contact message.
+      description: Sets the status of the contact message to CLOSED. Closing an already closed message changes nothing. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact message closed.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: string
+                example: "Contact message closed successfully"
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /users/search/admin:
+    get:
+      tags: [ User ]
+      operationId: searchUserByEmail
+      summary: Find a user by email.
+      description: Returns the user with this email address (case does not matter). Requires ROLE_ADMIN.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Email address of the user.
+          schema:
+            $ref: '#/components/schemas/Email'
+      responses:
+        '200':
+          description: User found.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /users/{userId}/role/employer/admin:
+    patch:
+      tags: [ User ]
+      operationId: elevateToEmployer
+      summary: Make a job seeker an employer.
+      description: >-
+        Changes the role of a job seeker to ROLE_EMPLOYER. An employer stays unchanged; an admin can not be
+        changed (409). The user gets the new role in the token at the next login. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user, now an employer.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /users/{userId}/company/{companyId}/admin:
+    patch:
+      tags: [ User ]
+      operationId: assignCompanyToEmployer
+      summary: Assign a company to an employer.
+      description: >-
+        Links the employer to the company (replaces a previous company). Only employers can be assigned (409);
+        the user and the company must exist (404). Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: companyId
+          in: path
+          required: true
+          description: Unique company identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The employer with the company assigned.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -216,6 +501,67 @@ components:
       description: Unique company identifier.
       schema:
         $ref: '#/components/schemas/Uuid'
+
+    CompanyPathId:
+      name: id
+      in: path
+      required: true
+      description: Unique company identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Unique user identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ContactId:
+      name: id
+      in: path
+      required: true
+      description: Unique contact identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    SortBy:
+      name: sortBy
+      in: query
+      required: false
+      description: Field to sort by.
+      schema:
+        type: string
+        enum: [createdAt, name, email, subject, userType, status]
+        default: createdAt
+    SortDir:
+      name: sortDir
+      in: query
+      required: false
+      description: Sort direction.
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+    PageNumber:
+      name: pageNumber
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Number of items per page.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 10
 
   schemas:
     Uuid:
@@ -456,6 +802,130 @@ components:
         createdAt:
           $ref: '#/components/schemas/DateTime'
 
+    CompanyRequest:
+      type: object
+      additionalProperties: false
+      description: All details of a company, used to create and to update one.
+      required: [founded]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Unique name of the company.
+          example: "DerpCorp Inc."
+          x-field-extra-annotation: '@NotBlank(message = "Name can not be empty")'
+        logo:
+          type: string
+          maxLength: 500
+          description: Path or URL of the company logo.
+          example: "/logos/derpcorp.png"
+          x-field-extra-annotation: '@NotBlank(message = "Logo can not be empty")'
+        industry:
+          type: string
+          maxLength: 100
+          description: Industry category the company operates in.
+          example: "Technology"
+          x-field-extra-annotation: '@NotBlank(message = "Industry can not be empty")'
+        size:
+          type: string
+          maxLength: 50
+          description: Company size descriptor.
+          example: "Large"
+          x-field-extra-annotation: '@NotBlank(message = "Size can not be empty")'
+        rating:
+          type: number
+          description: Company rating from 0 to 5. Optional, a new company without reviews gets 0.
+          example: 4.5
+          x-field-extra-annotation: '@DecimalMin(value = "0.0", message = "Rating must be at least 0") @DecimalMax(value = "5.0", message = "Rating must be at most 5")'
+        locations:
+          type: string
+          maxLength: 1000
+          description: Comma-separated list of company locations.
+          example: "Bucharest, Cluj-Napoca"
+          x-field-extra-annotation: '@NotBlank(message = "Locations can not be empty")'
+        founded:
+          type: integer
+          format: int32
+          description: Year the company was founded, 1900 or later.
+          example: 2010
+          x-field-extra-annotation: '@Min(value = 1900, message = "Founded must be 1900 or later")'
+        description:
+          type: string
+          maxLength: 5000
+          description: Description of the company.
+          example: "DerpCorp Inc. is a leading technology company."
+          x-field-extra-annotation: '@NotBlank(message = "Description can not be empty")'
+        employees:
+          type: integer
+          format: int32
+          description: Total number of employees, at least 1.
+          example: 15000
+          x-field-extra-annotation: '@Min(value = 1, message = "Employees must be greater than or equal to 1")'
+        website:
+          type: string
+          maxLength: 500
+          description: Official company website URL.
+          example: "https://www.derpcorp.example"
+          x-field-extra-annotation: '@NotBlank(message = "Website can not be empty")'
+
+    CompanyAdminResponse:
+      type: object
+      additionalProperties: false
+      description: All details of a company, without its jobs.
+      required: [id, name, industry, size, rating, founded, createdBy]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          example: "DerpCorp Inc."
+        logo:
+          type: string
+          example: "/logos/derpcorp.png"
+        industry:
+          type: string
+          example: "Technology"
+        size:
+          type: string
+          example: "Large"
+        rating:
+          type: number
+          format: double
+          example: 4.5
+        locations:
+          type: string
+          example: "Bucharest, Cluj-Napoca"
+        founded:
+          type: integer
+          format: int32
+          example: 2010
+        description:
+          type: string
+        employees:
+          type: integer
+          format: int32
+          example: 15000
+        website:
+          type: string
+          example: "https://www.derpcorp.example"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        createdBy:
+          $ref: '#/components/schemas/Uuid'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedBy:
+          $ref: '#/components/schemas/Uuid'
+
+    DeleteCompanyResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: "Company deleted successfully"
+
     CompanyResponse:
       type: object
       additionalProperties: false
@@ -658,6 +1128,70 @@ components:
           $ref: '#/components/schemas/DateTime'
         updatedBy:
           $ref: '#/components/schemas/Uuid'
+
+    ContactStatus:
+      type: string
+      enum: [NEW, CLOSED]
+      description: NEW until an admin closes the message.
+
+    ContactResponse:
+      type: object
+      additionalProperties: false
+      required: [id, name, email, userType, subject, message, status, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          example: "Jane Doe"
+        email:
+          type: string
+          example: "jane@example.com"
+        userType:
+          type: string
+          example: "Employer"
+        subject:
+          type: string
+          example: "Subject"
+        message:
+          type: string
+          example: "Message"
+        status:
+          $ref: '#/components/schemas/ContactStatus'
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
+    ContactPageResponse:
+      type: object
+      additionalProperties: false
+      description: One page of contact messages, plus the numbers needed to show a pager.
+      required: [content, pageNumber, pageSize, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactResponse'
+        pageNumber:
+          type: integer
+          format: int32
+          description: Zero-based index of this page.
+        pageSize:
+          type: integer
+          format: int32
+          description: Requested number of items per page.
+        totalElements:
+          type: integer
+          format: int64
+          description: Number of matching items over all pages.
+        totalPages:
+          type: integer
+          format: int32
+        first:
+          type: boolean
+        last:
+          type: boolean
 
     CreateContactResponse:
       type: object

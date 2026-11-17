@@ -5,6 +5,8 @@ import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class CompanyPersistenceMapper {
@@ -39,13 +41,38 @@ public class CompanyPersistenceMapper {
         );
     }
 
-    public CompanyEntity toEntity(Company company) {
-        if (company == null) {
+    /**
+     * Maps only the company itself: the lazy {@code jobs} collection is never touched, so no job query runs.
+     * {@code jobs} in the result is an empty list, meaning "not loaded".
+     */
+    public Company toDomainWithoutJobs(CompanyEntity entity) {
+        if (entity == null) {
             return null;
         }
+        return new Company(
+                entity.getId(),
+                entity.getName(),
+                entity.getLogo(),
+                entity.getIndustry(),
+                entity.getSize(),
+                entity.getRating(),
+                entity.getLocations(),
+                entity.getFounded(),
+                entity.getDescription(),
+                entity.getEmployees(),
+                entity.getWebsite(),
+                entity.getCreatedAt(),
+                entity.getCreatedBy(),
+                entity.getUpdatedAt(),
+                entity.getUpdatedBy(),
+                List.of()
+        );
+    }
 
-        CompanyEntity entity = new CompanyEntity();
-        entity.setId(company.id());
+    /**
+     * Copies the details an admin can change onto the entity (no id, audit fields or jobs).
+     */
+    public void applyDetails(Company company, CompanyEntity entity) {
         entity.setName(company.name());
         entity.setLogo(company.logo());
         entity.setIndustry(company.industry());
@@ -56,6 +83,16 @@ public class CompanyPersistenceMapper {
         entity.setDescription(company.description());
         entity.setEmployees(company.employees());
         entity.setWebsite(company.website());
+    }
+
+    public CompanyEntity toEntity(Company company) {
+        if (company == null) {
+            return null;
+        }
+
+        CompanyEntity entity = new CompanyEntity();
+        entity.setId(company.id());
+        applyDetails(company, entity);
         entity.restoreAuditFields(company.createdAt(), company.createdBy(), company.updatedAt(), company.updatedBy());
         if (company.jobs() != null) {
             entity.getJobs().addAll(company.jobs().stream().map(job -> jobMapper.toEntity(job, entity)).toList());

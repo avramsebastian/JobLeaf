@@ -55,7 +55,6 @@ public class JobLeafEmailPwdAuthenticationProvider implements AuthenticationProv
             throw new BadCredentialsException(BAD_CREDENTIALS_MESSAGE);
         }
 
-        // The password is not kept in the result (credentials = null)
         return UsernamePasswordAuthenticationToken.authenticated(user.get().getEmail(), null,
                 AuthorityUtils.createAuthorityList(user.get().getRole().getName().name()));
     }

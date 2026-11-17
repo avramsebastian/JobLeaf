@@ -8,6 +8,7 @@ import com.seby.jobleaf.infrastructure.persistence.repository.CompanyJpaReposito
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,8 @@ import java.util.UUID;
 public class CompanyRepositoryAdapter implements CompanyRepositoryPort {
 
     private static final Logger log = LoggerFactory.getLogger(CompanyRepositoryAdapter.class);
+
+    static final String NAME = "name";
 
     private final CompanyJpaRepository companyJpaRepository;
     private final CompanyPersistenceMapper mapper;
@@ -53,9 +56,67 @@ public class CompanyRepositoryAdapter implements CompanyRepositoryPort {
     @Transactional(readOnly = true)
     public List<Company> findAll() {
         long start = System.currentTimeMillis();
-        var companies = companyJpaRepository.findAll().stream().map(mapper::toDomain).toList();
+        var companies = companyJpaRepository.findAllWithJobsByStatus("ACTIVE").stream().map(mapper::toDomain).toList();
         log.debug("Loaded {} companies with their jobs from database in {}ms",
                 companies.size(), System.currentTimeMillis() - start);
         return companies;
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<Company> findAllWithoutJobs() {
+        return companyJpaRepository.findAll(Sort.by(NAME)).stream().map(mapper::toDomainWithoutJobs).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Company> findByIdWithoutJobs(UUID id) {
+        return companyJpaRepository.findById(id).map(mapper::toDomainWithoutJobs);
+    }
+
+    /**
+     * {@code createdAt} is empty, so {@code BaseEntity.isNew()} is true and JPA inserts (persist) instead of merging.
+     */
+    @Override
+    public Company create(Company company) {
+        CompanyEntity saved = companyJpaRepository.save(mapper.toEntity(company));
+        log.debug("Created company with id {}", saved.getId());
+        return mapper.toDomainWithoutJobs(saved);
+    }
+
+    /**
+     * Loads the managed entity and copies only the details onto it. Saving a new entity built from the domain
+     * object instead would replace the jobs collection, and orphanRemoval would then delete every job.
+     * saveAndFlush: the UPDATE runs now, so auditing fills in updatedAt/updatedBy before the result is mapped.
+     */
+    @Override
+    public Company updateDetails(Company company) {
+        CompanyEntity entity = companyJpaRepository.findById(company.id())
+                .orElseThrow(() -> new IllegalStateException("Company " + company.id() + " disappeared during update"));
+        mapper.applyDetails(company, entity);
+        CompanyEntity saved = companyJpaRepository.saveAndFlush(entity);
+        log.debug("Updated company with id {}", saved.getId());
+        return mapper.toDomainWithoutJobs(saved);
+    }
+
+    /**
+     * Cascade (CascadeType.ALL + orphanRemoval) deletes the jobs first; the users.company_id foreign key is
+     * ON DELETE SET NULL, so assigned employers keep their account without a company.
+     */
+    @Override
+    public void deleteById(UUID id) {
+        companyJpaRepository.deleteById(id);
+        log.debug("Deleted company with id {}", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByName(String name) {
+        return companyJpaRepository.existsByNameIgnoreCase(name);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByNameExcluding(String name, UUID excludedId) {
+        return companyJpaRepository.existsByNameIgnoreCaseAndIdNot(name, excludedId);
     }
 }

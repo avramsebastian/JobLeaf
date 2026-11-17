@@ -26,6 +26,21 @@ public class PathsConfig {
         );
     }
 
+    @Bean(name = "adminPaths")
+    public List<String> adminPaths() {
+        return List.of(
+                "/jobleaf/contacts/admin",
+                "/jobleaf/contacts/sort/admin",
+                "/jobleaf/contacts/page/admin",
+                "/jobleaf/contacts/{id}/status/admin",
+                "/jobleaf/companies/admin",
+                "/jobleaf/companies/{id}/admin",
+                "/jobleaf/users/search/admin",
+                "/jobleaf/users/{userId}/role/employer/admin",
+                "/jobleaf/users/{userId}/company/{companyId}/admin"
+        );
+    }
+
     @Bean(name = "securedPaths")
     public List<String> securedPaths() {
         return List.of(

@@ -117,7 +117,7 @@ class CompanyRepositoryAdapterTest {
     }
 
     @Test
-    @DisplayName("Should find all companies and map each to domain")
+    @DisplayName("Should find the companies with their ACTIVE jobs and map each to domain")
     void findAll_returnsListOfMappedCompanies() {
         // Given
         CompanyEntity entity1 = new CompanyEntity();
@@ -125,7 +125,7 @@ class CompanyRepositoryAdapterTest {
         Company company1 = createSampleCompany(UUID.randomUUID(), "Company 1");
         Company company2 = createSampleCompany(UUID.randomUUID(), "Company 2");
 
-        when(companyJpaRepository.findAll()).thenReturn(List.of(entity1, entity2));
+        when(companyJpaRepository.findAllWithJobsByStatus("ACTIVE")).thenReturn(List.of(entity1, entity2));
         when(mapper.toDomain(entity1)).thenReturn(company1);
         when(mapper.toDomain(entity2)).thenReturn(company2);
 
@@ -135,7 +135,7 @@ class CompanyRepositoryAdapterTest {
         // Then
         assertThat(results).hasSize(2);
         assertThat(results).containsExactly(company1, company2);
-        verify(companyJpaRepository).findAll();
+        verify(companyJpaRepository).findAllWithJobsByStatus("ACTIVE");
         verify(mapper).toDomain(entity1);
         verify(mapper).toDomain(entity2);
     }

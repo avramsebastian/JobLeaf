@@ -76,7 +76,7 @@ class ContactPersistenceMapperTest {
                 "bob@example.com",
                 "other",
                 "Partnership Inquiry",
-                "Interested in partnering with JobLeaf.",
+                "Interested in partnering with JobLeaf.", com.seby.jobleaf.domain.model.ContactStatus.NEW,
                 createdAt,
                 null,
                 null,

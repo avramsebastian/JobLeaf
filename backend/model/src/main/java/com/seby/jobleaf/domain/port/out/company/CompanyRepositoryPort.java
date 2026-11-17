@@ -35,4 +35,44 @@ public interface CompanyRepositoryPort {
      * @return all the companies that are stored.
      */
     List<Company> findAll();
+
+    /**
+     * @return every company sorted by name, without loading jobs ({@code jobs} is an empty list)
+     */
+    List<Company> findAllWithoutJobs();
+
+    /**
+     * @return the company without loading its jobs ({@code jobs} is an empty list)
+     */
+    Optional<Company> findByIdWithoutJobs(UUID id);
+
+    /**
+     * Creates a company. Its jobs list must be empty.
+     *
+     * @return the stored company, with audit fields filled in
+     */
+    Company create(Company company);
+
+    /**
+     * Stores the new details of an existing company. Only the details change: its jobs are left untouched (an
+     * empty jobs list here does NOT delete them).
+     *
+     * @return the stored company (jobs not loaded: empty list)
+     */
+    Company updateDetails(Company company);
+
+    /**
+     * Deletes the company together with its jobs.
+     */
+    void deleteById(UUID id);
+
+    /**
+     * @return whether a company has this name, ignoring upper/lower case
+     */
+    boolean existsByName(String name);
+
+    /**
+     * @return whether a company other than {@code excludedId} has this name, ignoring upper/lower case
+     */
+    boolean existsByNameExcluding(String name, UUID excludedId);
 }

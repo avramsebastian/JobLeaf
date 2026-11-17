@@ -3,9 +3,11 @@ package com.seby.jobleaf.infrastructure.persistence.adapter;
 import com.seby.jobleaf.domain.model.JobLeafUser;
 import com.seby.jobleaf.domain.model.RoleName;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort.NewUser;
+import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobLeafUserEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.RoleEntity;
 import com.seby.jobleaf.infrastructure.persistence.mapper.JobLeafUserPersistenceMapper;
+import com.seby.jobleaf.infrastructure.persistence.repository.CompanyJpaRepository;
 import com.seby.jobleaf.infrastructure.persistence.repository.JobLeafUserJpaRepository;
 import com.seby.jobleaf.infrastructure.persistence.repository.RoleJpaRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -33,8 +35,51 @@ class UserRepositoryAdapterTest {
     @Mock
     private RoleJpaRepository roleJpaRepository;
 
+    @Mock
+    private CompanyJpaRepository companyJpaRepository;
+
     private UserRepositoryAdapter adapter() {
-        return new UserRepositoryAdapter(userJpaRepository, roleJpaRepository, new JobLeafUserPersistenceMapper());
+        return new UserRepositoryAdapter(userJpaRepository, roleJpaRepository, companyJpaRepository,
+                new JobLeafUserPersistenceMapper());
+    }
+
+    private static JobLeafUserEntity storedUser(RoleName roleName) {
+        var user = new JobLeafUserEntity();
+        user.setId(java.util.UUID.randomUUID());
+        user.setName("Jane");
+        user.setEmail("jane@example.com");
+        user.setRole(new RoleEntity(roleName));
+        return user;
+    }
+
+    @Test
+    @DisplayName("Should change the role on the managed user entity")
+    void updateRole_setsNewRole() {
+        var user = storedUser(RoleName.ROLE_JOB_SEEKER);
+        when(userJpaRepository.findWithRoleById(user.getId())).thenReturn(Optional.of(user));
+        when(roleJpaRepository.findByName(RoleName.ROLE_EMPLOYER)).thenReturn(Optional.of(new RoleEntity(RoleName.ROLE_EMPLOYER)));
+        when(userJpaRepository.saveAndFlush(user)).thenReturn(user);
+
+        JobLeafUser result = adapter().updateRole(user.getId(), RoleName.ROLE_EMPLOYER);
+
+        assertThat(result.role()).isEqualTo(RoleName.ROLE_EMPLOYER);
+    }
+
+    @Test
+    @DisplayName("Should set the company on the user and return its id and name")
+    void assignCompany_setsCompany() {
+        var user = storedUser(RoleName.ROLE_EMPLOYER);
+        var company = new CompanyEntity();
+        company.setId(java.util.UUID.randomUUID());
+        company.setName("DerpCorp");
+        when(userJpaRepository.findWithRoleById(user.getId())).thenReturn(Optional.of(user));
+        when(companyJpaRepository.findById(company.getId())).thenReturn(Optional.of(company));
+        when(userJpaRepository.saveAndFlush(user)).thenReturn(user);
+
+        JobLeafUser result = adapter().assignCompany(user.getId(), company.getId());
+
+        assertThat(result.companyId()).isEqualTo(company.getId());
+        assertThat(result.companyName()).isEqualTo("DerpCorp");
     }
 
     @Test

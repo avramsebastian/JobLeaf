@@ -18,6 +18,7 @@ public class ContactPersistenceMapper {
                 entity.getUserType(),
                 entity.getSubject(),
                 entity.getMessage(),
+                entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getCreatedBy(),
                 entity.getUpdatedAt(),
@@ -37,6 +38,7 @@ public class ContactPersistenceMapper {
         entity.setUserType(contact.userType());
         entity.setSubject(contact.subject());
         entity.setMessage(contact.message());
+        entity.setStatus(contact.status());
         entity.restoreAuditFields(contact.createdAt(), contact.createdBy(), contact.updatedAt(), contact.updatedBy());
 
         return entity;

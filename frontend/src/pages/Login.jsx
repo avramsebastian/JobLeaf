@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import TurnstileWidget from "../components/TurnstileWidget";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +12,8 @@ const Login = () => {
   });
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const captchaRef = useRef(null);
 
   const { login, isLoading } = useAuth();
   const { theme } = useTheme();
@@ -37,13 +40,16 @@ const Login = () => {
     const result = await login(
       formData.email,
       formData.password,
-      formData.userType
+      formData.userType,
+      captchaToken
     );
 
     if (result.success) {
       navigate(from, { replace: true });
     } else {
       setError(result.error);
+      // The token was used up by this attempt: the user has to tick the box again
+      captchaRef.current?.reset();
     }
   };
 
@@ -218,10 +224,18 @@ const Login = () => {
               </div>
             )}
 
-            {/* Login Button */}
+            {/* Cloudflare Turnstile: "Verify you are human" */}
+            <TurnstileWidget
+              ref={captchaRef}
+              action="login"
+              theme={theme === "dark" ? "dark" : "light"}
+              onToken={setCaptchaToken}
+            />
+
+            {/* Login Button: only usable once the human check passed */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !captchaToken}
               className="w-full bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-primary-700 hover:to-purple-700 focus:ring-4 focus:ring-primary-300 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isLoading ? (

@@ -2,8 +2,15 @@ package com.seby.jobleaf.infrastructure.web.exception;
 
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
+import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
+import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
+import com.seby.jobleaf.infrastructure.web.security.captcha.CaptchaVerificationException;
+import com.seby.jobleaf.infrastructure.web.security.ratelimit.RateLimitExceededException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
@@ -43,6 +50,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     static final String PROBLEM_TYPE_BASE = "https://jobleaf.local/problems/";
     static final String ERRORS_PROPERTY = "errors";
+    static final String RETRY_AFTER_PROPERTY = "retryAfterSeconds";
     static final String GENERIC_ERROR_DETAIL = "An unexpected error occurred. Please try again later.";
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -81,6 +89,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, detail, request);
     }
 
+    /**
+     * The user's role does not allow the change (an admin made employer, a non-employer given a company).
+     */
+    @ExceptionHandler(UserRoleConflictException.class)
+    public ResponseEntity<ProblemDetail> handleUserRoleConflict(UserRoleConflictException exception,
+                                                                WebRequest request) {
+        log.debug("User role conflict: {}", exception.getMessage());
+        return problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(CompanyAlreadyExistsException.class)
+    public ResponseEntity<ProblemDetail> handleCompanyAlreadyExists(CompanyAlreadyExistsException exception,
+                                                                    WebRequest request) {
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+        response.getBody().setProperty(ERRORS_PROPERTY, Map.of(exception.getField(), exception.getMessage()));
+        return response;
+    }
+
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ProblemDetail> handleUserAlreadyExists(UserAlreadyExistsException exception,
                                                                  WebRequest request) {
@@ -99,6 +125,59 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 ? "The CSRF token is missing or invalid. Get one from /csrf-token/public and send it in the X-XSRF-TOKEN header"
                 : "You do not have permission to access this resource";
         return problem(HttpStatus.FORBIDDEN, detail, request);
+    }
+
+    /**
+     * Invalid query or path parameters, e.g. {@code pageSize=1000} against {@code @Max(100)}. The generated API
+     * interfaces are {@code @Validated}, so Spring validates the parameters through method validation, which throws
+     * this exception instead of the MVC {@link HandlerMethodValidationException}.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException exception,
+                                                                   WebRequest request) {
+        log.debug("Parameter validation failed for {}: {}", instancePath(request), exception.getMessage());
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
+            errors.merge(parameterName(violation), violation.getMessage(), (a, b) -> a + ", " + b);
+        }
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.BAD_REQUEST, "Request validation failed", request);
+        response.getBody().setProperty(ERRORS_PROPERTY, errors);
+        return response;
+    }
+
+    /**
+     * @return the last part of the property path, e.g. "pageSize" for "fetchNewContactMsgs.pageSize"
+     */
+    private static String parameterName(ConstraintViolation<?> violation) {
+        String name = null;
+        for (Path.Node node : violation.getPropertyPath()) {
+            name = node.getName();
+        }
+        return name == null ? "request" : name;
+    }
+
+    /**
+     * A client used up its requests ({@code RateLimitFilter}). {@code Retry-After} is the standard header for "when
+     * may I try again"; {@code retryAfterSeconds} in the body is the same number, easy for the frontend to read.
+     */
+    /**
+     * No "errors" map on purpose: the register page would try to show it under a form field that does not exist.
+     */
+    @ExceptionHandler(CaptchaVerificationException.class)
+    public ResponseEntity<ProblemDetail> handleCaptchaVerification(CaptchaVerificationException exception,
+                                                                   WebRequest request) {
+        log.debug("Captcha check failed for {}", instancePath(request));
+        return problem(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException exception,
+                                                                 WebRequest request) {
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), request);
+        response.getBody().setProperty(RETRY_AFTER_PROPERTY, exception.getRetryAfterSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
+                .body(response.getBody());
     }
 
     @ExceptionHandler(Exception.class)

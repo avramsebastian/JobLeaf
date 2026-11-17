@@ -20,4 +20,9 @@ public interface ReadCompanyUseCase {
      * @return a list of companies
      */
     List<Company> listAllCompanies();
+
+    /**
+     * @return every company sorted by name, also those without active jobs; jobs are not loaded (empty list)
+     */
+    List<Company> listCompaniesForAdmin();
 }

@@ -1,5 +1,6 @@
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
+import { getRateLimitMessage } from '../utils/rateLimit';
 
 /**
  * Submit contact form data to the backend
@@ -31,6 +32,8 @@ export const submitContactForm = async (contactData) => {
       const errorData = error.response.data;
 
       switch (status) {
+        case 429:
+          throw new Error(getRateLimitMessage(error));
         case 400:
           throw new Error(errorData.message || 'Invalid form data. Please check your inputs.');
         case 500:

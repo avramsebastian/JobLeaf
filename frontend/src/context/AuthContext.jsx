@@ -2,6 +2,10 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
 import { clearSession, getExpiresAt, isSessionExpired, saveSession } from '../utils/authSession';
+import { getRateLimitMessage } from '../utils/rateLimit';
+
+// Turnstile token from the 'Verify you are human' box; the backend CaptchaFilter checks it on login and register
+const CAPTCHA_HEADER = 'X-Captcha-Token';
 
 const AuthContext = createContext();
 
@@ -123,7 +127,7 @@ export const AuthProvider = ({ children }) => {
     return userWithRole;
   };
 
-  const login = async (email, password, userType) => {
+  const login = async (email, password, userType, captchaToken) => {
     setIsLoading(true);
 
     try {
@@ -134,7 +138,7 @@ export const AuthProvider = ({ children }) => {
       const response = await httpClient.post(API_ENDPOINTS.LOGIN, {
         email,
         password
-      });
+      }, { headers: { [CAPTCHA_HEADER]: captchaToken } });
 
       console.log('[Auth] Login response:', response.data);
 
@@ -153,7 +157,8 @@ export const AuthProvider = ({ children }) => {
 
       if (error.response) {
         // Server responded with error; the backend sends RFC 9457 problem details, whose message is in "detail"
-        const errorMessage = error.response.data?.detail
+        const errorMessage = getRateLimitMessage(error)
+          || error.response.data?.detail
           || error.response.data?.message
           || error.response.data?.error
           || `Authentication failed (${error.response.status})`;
@@ -185,7 +190,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
+  const register = async (userData, captchaToken) => {
     setIsLoading(true);
 
     try {
@@ -201,7 +206,7 @@ export const AuthProvider = ({ children }) => {
         email: userData.email,
         mobileNumber: userData.mobileNumber,
         password: userData.password
-      });
+      }, { headers: { [CAPTCHA_HEADER]: captchaToken } });
 
       // The backend logs the user in on registration: same token and user as a login
       const userWithRole = await startSession(response.data);
@@ -234,7 +239,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         // Otherwise, it's a general error message
-        const errorMessage = errorData?.detail
+        const errorMessage = getRateLimitMessage(error)
+          || errorData?.detail
           || errorData?.message
           || (typeof errorData === 'string' ? errorData : null)
           || `Registration failed (${error.response.status})`;
@@ -282,7 +288,7 @@ export const AuthProvider = ({ children }) => {
       setUser(updatedUser);
       setIsLoading(false);
       return { success: true, user: updatedUser };
-    } catch (error) {
+    } catch {
       setIsLoading(false);
       return { success: false, error: 'Failed to update profile' };
     }

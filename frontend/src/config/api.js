@@ -24,6 +24,9 @@ export const API_ENDPOINTS = {
   // Company endpoints
   COMPANIES: "/companies/public",
   COMPANY_BY_ID: (id) => `/companies/${id}`,
+  // Admin only (ROLE_ADMIN): list without jobs (GET), create (POST), update (PUT), delete (DELETE)
+  ADMIN_COMPANIES: "/companies/admin",
+  ADMIN_COMPANY_BY_ID: (id) => `/companies/${id}/admin`,
 
   // Job endpoints (placeholder for future use)
   JOBS: "/jobs",
@@ -41,18 +44,20 @@ export const API_ENDPOINTS = {
   // Contact endpoints
   CONTACTS: "/contacts/public",
   CONTACT_BY_ID: (id) => `/contacts/${id}`,
-  ADMIN_CONTACTS: "/admin/contacts",
-  ADMIN_CONTACTS_SORT: "/admin/contacts/sort",
-  ADMIN_CONTACTS_PAGE: "/admin/contacts/page",
-  UPDATE_CONTACT_STATUS: (id) => `/admin/contacts/${id}/status`,
+  // Admin only (ROLE_ADMIN): the backend puts the access level at the end of the path
+  ADMIN_CONTACTS: "/contacts/admin",
+  ADMIN_CONTACTS_SORT: "/contacts/sort/admin",
+  ADMIN_CONTACTS_PAGE: "/contacts/page/admin",
+  UPDATE_CONTACT_STATUS: (id) => `/contacts/${id}/status/admin`,
 
   // CSRF token endpoint
   CSRF_TOKEN: "/csrf-token/public",
 
   // Admin User Management endpoints
-  SEARCH_USER_BY_EMAIL: "/admin/users/search",
-  ELEVATE_TO_EMPLOYER: (userId) => `/admin/users/${userId}/elevate-to-employer`,
-  ASSIGN_COMPANY_TO_EMPLOYER: (userId) => `/admin/users/${userId}/assign-company`,
+  // Admin only (ROLE_ADMIN). The two PATCH endpoints take everything from the path, no request body
+  SEARCH_USER_BY_EMAIL: "/users/search/admin",
+  ELEVATE_TO_EMPLOYER: (userId) => `/users/${userId}/role/employer/admin`,
+  ASSIGN_COMPANY_TO_EMPLOYER: (userId, companyId) => `/users/${userId}/company/${companyId}/admin`,
 
   // Employer Job Management endpoints
   EMPLOYER_JOBS: "/employer/jobs",

@@ -1,7 +1,11 @@
 package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.CompanyResponse;
+import com.seby.jobleaf.apis.generated.model.CompanyAdminResponse;
+import com.seby.jobleaf.apis.generated.model.CompanyRequest;
+import com.seby.jobleaf.apis.generated.model.DeleteCompanyResponse;
 import com.seby.jobleaf.domain.model.Company;
+import com.seby.jobleaf.domain.model.CompanyDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +48,59 @@ public class CompanyWebMapper {
 
     public List<CompanyResponse> toListCompaniesResponse(List<Company> companies) {
         return companies.stream().map(this::toCompanyResponse).toList();
+    }
+
+    static final String DELETE_SUCCESS_MESSAGE = "Company deleted successfully";
+
+    /**
+     * Request DTO to domain details. CompanyDetails validates again, so the domain stays safe without the web layer.
+     */
+    public CompanyDetails toCompanyDetails(CompanyRequest request) {
+        return new CompanyDetails(
+                request.getName(),
+                request.getLogo(),
+                request.getIndustry(),
+                request.getSize(),
+                request.getRating() == null ? null : request.getRating().doubleValue(),
+                request.getLocations(),
+                request.getFounded(),
+                request.getDescription(),
+                request.getEmployees(),
+                request.getWebsite()
+        );
+    }
+
+    /**
+     * All company fields except the jobs.
+     */
+    public CompanyAdminResponse toCompanyAdminResponse(Company company) {
+        var response = new CompanyAdminResponse();
+        response.setId(company.id());
+        response.setName(company.name());
+        response.setLogo(company.logo());
+        response.setIndustry(company.industry());
+        response.setSize(company.size());
+        response.setRating(company.rating());
+        response.setLocations(company.locations());
+        response.setFounded(company.founded());
+        response.setDescription(company.description());
+        response.setEmployees(company.employees());
+        response.setWebsite(company.website());
+        response.setCreatedAt(convertInstant(company.createdAt()));
+        response.setCreatedBy(company.createdBy());
+        response.setUpdatedAt(convertInstant(company.updatedAt()));
+        response.setUpdatedBy(company.updatedBy());
+        return response;
+    }
+
+    public List<CompanyAdminResponse> toCompanyAdminResponses(List<Company> companies) {
+        return companies.stream().map(this::toCompanyAdminResponse).toList();
+    }
+
+    public DeleteCompanyResponse toDeleteCompanyResponse() {
+        var response = new DeleteCompanyResponse();
+        response.setMessage(DELETE_SUCCESS_MESSAGE);
+        return response;
     }
 
     private OffsetDateTime convertInstant(Instant instant) {

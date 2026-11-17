@@ -551,6 +551,11 @@
               {
                 "key": "Content-Type",
                 "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Captcha-Token",
+                "value": "XXXX.DUMMY.TOKEN.XXXX",
+                "description": "Any value works with the Cloudflare TEST secret (TURNSTILE_SECRET_KEY=1x...AA). With a real secret, take a token from the browser widget."
               }
             ],
             "url": {
@@ -608,6 +613,11 @@
               {
                 "key": "Content-Type",
                 "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Captcha-Token",
+                "value": "XXXX.DUMMY.TOKEN.XXXX",
+                "description": "Any value works with the Cloudflare TEST secret (TURNSTILE_SECRET_KEY=1x...AA). With a real secret, take a token from the browser widget."
               }
             ],
             "url": {
@@ -652,6 +662,11 @@
               {
                 "key": "Content-Type",
                 "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Captcha-Token",
+                "value": "XXXX.DUMMY.TOKEN.XXXX",
+                "description": "Any value works with the Cloudflare TEST secret (TURNSTILE_SECRET_KEY=1x...AA). With a real secret, take a token from the browser widget."
               }
             ],
             "url": {
@@ -696,6 +711,11 @@
               {
                 "key": "Content-Type",
                 "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Captcha-Token",
+                "value": "XXXX.DUMMY.TOKEN.XXXX",
+                "description": "Any value works with the Cloudflare TEST secret (TURNSTILE_SECRET_KEY=1x...AA). With a real secret, take a token from the browser widget."
               }
             ],
             "url": {
@@ -759,6 +779,11 @@
               {
                 "key": "Content-Type",
                 "value": "{{apiAccept}}"
+              },
+              {
+                "key": "X-Captcha-Token",
+                "value": "XXXX.DUMMY.TOKEN.XXXX",
+                "description": "Any value works with the Cloudflare TEST secret (TURNSTILE_SECRET_KEY=1x...AA). With a real secret, take a token from the browser widget."
               }
             ],
             "url": {
