@@ -46,6 +46,107 @@ paths:
         "429": { $ref: '#/components/responses/TooManyRequests' }
         default: { $ref: '#/components/responses/UnexpectedError' }
 
+  /companies/admin:
+    get:
+      tags: [ Company ]
+      operationId: listCompaniesForAdmin
+      summary: List all companies for the admin.
+      description: Returns every company with all its details but without jobs, sorted by name. Requires ROLE_ADMIN.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Companies retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyAdminResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ Company ]
+      operationId: createCompany
+      summary: Create a company.
+      description: Creates a company without jobs (employers add jobs later). The name must be unique. Requires ROLE_ADMIN.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CompanyRequest'
+      responses:
+        '201':
+          description: Company created successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CompanyAdminResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /companies/{id}/admin:
+    put:
+      tags: [ Company ]
+      operationId: updateCompany
+      summary: Update a company.
+      description: Replaces all details of the company; its jobs are not changed. The name must stay unique. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/CompanyPathId'
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CompanyRequest'
+      responses:
+        '200':
+          description: Company updated successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/CompanyAdminResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    delete:
+      tags: [ Company ]
+      operationId: deleteCompany
+      summary: Delete a company.
+      description: Deletes the company together with its jobs. Employers assigned to it are kept, without a company. Requires ROLE_ADMIN.
+      parameters:
+        - $ref: '#/components/parameters/CompanyPathId'
+      responses:
+        '200':
+          description: Company deleted successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/DeleteCompanyResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
   /contacts/public:
     post:
       tags: [Contact]
@@ -313,6 +414,13 @@ components:
       schema:
         $ref: '#/components/schemas/Uuid'
 
+    CompanyPathId:
+      name: id
+      in: path
+      required: true
+      description: Unique company identifier.
+      schema:
+        $ref: '#/components/schemas/Uuid'
     ContactId:
       name: id
       in: path
@@ -598,6 +706,130 @@ components:
           example: "Acme Corp"
         createdAt:
           $ref: '#/components/schemas/DateTime'
+
+    CompanyRequest:
+      type: object
+      additionalProperties: false
+      description: All details of a company, used to create and to update one.
+      required: [founded]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Unique name of the company.
+          example: "DerpCorp Inc."
+          x-field-extra-annotation: '@NotBlank(message = "Name can not be empty")'
+        logo:
+          type: string
+          maxLength: 500
+          description: Path or URL of the company logo.
+          example: "/logos/derpcorp.png"
+          x-field-extra-annotation: '@NotBlank(message = "Logo can not be empty")'
+        industry:
+          type: string
+          maxLength: 100
+          description: Industry category the company operates in.
+          example: "Technology"
+          x-field-extra-annotation: '@NotBlank(message = "Industry can not be empty")'
+        size:
+          type: string
+          maxLength: 50
+          description: Company size descriptor.
+          example: "Large"
+          x-field-extra-annotation: '@NotBlank(message = "Size can not be empty")'
+        rating:
+          type: number
+          description: Company rating from 0 to 5. Optional, a new company without reviews gets 0.
+          example: 4.5
+          x-field-extra-annotation: '@DecimalMin(value = "0.0", message = "Rating must be at least 0") @DecimalMax(value = "5.0", message = "Rating must be at most 5")'
+        locations:
+          type: string
+          maxLength: 1000
+          description: Comma-separated list of company locations.
+          example: "Bucharest, Cluj-Napoca"
+          x-field-extra-annotation: '@NotBlank(message = "Locations can not be empty")'
+        founded:
+          type: integer
+          format: int32
+          description: Year the company was founded, 1900 or later.
+          example: 2010
+          x-field-extra-annotation: '@Min(value = 1900, message = "Founded must be 1900 or later")'
+        description:
+          type: string
+          maxLength: 5000
+          description: Description of the company.
+          example: "DerpCorp Inc. is a leading technology company."
+          x-field-extra-annotation: '@NotBlank(message = "Description can not be empty")'
+        employees:
+          type: integer
+          format: int32
+          description: Total number of employees, at least 1.
+          example: 15000
+          x-field-extra-annotation: '@Min(value = 1, message = "Employees must be greater than or equal to 1")'
+        website:
+          type: string
+          maxLength: 500
+          description: Official company website URL.
+          example: "https://www.derpcorp.example"
+          x-field-extra-annotation: '@NotBlank(message = "Website can not be empty")'
+
+    CompanyAdminResponse:
+      type: object
+      additionalProperties: false
+      description: All details of a company, without its jobs.
+      required: [id, name, industry, size, rating, founded, createdBy]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          example: "DerpCorp Inc."
+        logo:
+          type: string
+          example: "/logos/derpcorp.png"
+        industry:
+          type: string
+          example: "Technology"
+        size:
+          type: string
+          example: "Large"
+        rating:
+          type: number
+          format: double
+          example: 4.5
+        locations:
+          type: string
+          example: "Bucharest, Cluj-Napoca"
+        founded:
+          type: integer
+          format: int32
+          example: 2010
+        description:
+          type: string
+        employees:
+          type: integer
+          format: int32
+          example: 15000
+        website:
+          type: string
+          example: "https://www.derpcorp.example"
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        createdBy:
+          $ref: '#/components/schemas/Uuid'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedBy:
+          $ref: '#/components/schemas/Uuid'
+
+    DeleteCompanyResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: "Company deleted successfully"
 
     CompanyResponse:
       type: object

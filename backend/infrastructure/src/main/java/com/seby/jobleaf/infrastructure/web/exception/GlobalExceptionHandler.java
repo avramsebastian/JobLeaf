@@ -2,6 +2,7 @@ package com.seby.jobleaf.infrastructure.web.exception;
 
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
+import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
 import com.seby.jobleaf.infrastructure.web.security.captcha.CaptchaVerificationException;
@@ -85,6 +86,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             default -> "Authentication is required to access this resource";
         };
         return problem(HttpStatus.UNAUTHORIZED, detail, request);
+    }
+
+    @ExceptionHandler(CompanyAlreadyExistsException.class)
+    public ResponseEntity<ProblemDetail> handleCompanyAlreadyExists(CompanyAlreadyExistsException exception,
+                                                                    WebRequest request) {
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+        response.getBody().setProperty(ERRORS_PROPERTY, Map.of(exception.getField(), exception.getMessage()));
+        return response;
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)

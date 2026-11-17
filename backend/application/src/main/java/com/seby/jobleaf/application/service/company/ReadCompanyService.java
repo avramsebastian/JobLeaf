@@ -52,6 +52,14 @@ public class ReadCompanyService implements ReadCompanyUseCase {
         return companies;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Company> listCompaniesForAdmin() {
+        var companies = companyRepositoryPort.findAllWithoutJobs();
+        log.info("Listed {} companies for the admin", companies.size());
+        return companies;
+    }
+
     private static int jobCount(Company company) {
         return company.jobs() == null ? 0 : company.jobs().size();
     }

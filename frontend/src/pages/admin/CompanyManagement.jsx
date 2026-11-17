@@ -1,12 +1,27 @@
-import { useState, useEffect } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { useCompanies } from '../../contexts/CompaniesContext';
 import httpClient from '../../config/httpClient';
 import { API_ENDPOINTS } from '../../config/api';
 
+/**
+ * The backend answers errors as problem details: the summary is in "detail", field problems in "errors"
+ * (e.g. {"name": "Name can not be empty"}). Show the field messages when there are any.
+ */
+const getErrorMessage = (err, fallback) => {
+  const data = err.response?.data;
+  if (data?.errors && typeof data.errors === 'object') {
+    return Object.values(data.errors).join('. ');
+  }
+  return data?.detail || fallback;
+};
+
 const CompanyManagement = () => {
-  const { theme } = useTheme();
-  const { companies: contextCompanies, loading: contextLoading, refetch } = useCompanies();
+  // The public list (CompaniesContext) only has companies with active jobs and carries all their jobs, so the
+  // admin page loads its own list from GET /companies/admin. forceRefresh updates the public pages after a change.
+  const { forceRefresh } = useCompanies();
+  const [companies, setCompanies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingCompanyId, setEditingCompanyId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,9 +41,35 @@ const CompanyManagement = () => {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
 
-  // Use companies from context - no need to fetch separately
-  const companies = contextCompanies;
-  const isLoading = contextLoading;
+  const loadCompanies = useCallback(async (signal) => {
+    try {
+      const response = await httpClient.get(API_ENDPOINTS.ADMIN_COMPANIES, { signal });
+      setCompanies(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      if (axios.isCancel(err)) {
+        return;
+      }
+      console.error('Error loading companies:', err);
+      setError(getErrorMessage(err, 'Failed to load companies'));
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Cancelled on unmount (and on StrictMode's test unmount in development, so the list loads once)
+    const controller = new AbortController();
+    loadCompanies(controller.signal);
+    return () => controller.abort();
+  }, [loadCompanies]);
+
+  // After a change: reload this list, and refresh the cached public list so the other pages see it too
+  const reloadAfterChange = async () => {
+    await loadCompanies();
+    forceRefresh();
+  };
 
   const handleSubmit = async (e, companyId = null) => {
     e.preventDefault();
@@ -48,13 +89,13 @@ const CompanyManagement = () => {
       if (companyId) {
         // Update existing company
         await httpClient.put(
-          API_ENDPOINTS.COMPANY_BY_ID(companyId),
+          API_ENDPOINTS.ADMIN_COMPANY_BY_ID(companyId),
           dataToSend
         );
         setSuccess('Company updated successfully');
       } else {
         // Create new company
-        await httpClient.post(API_ENDPOINTS.COMPANIES, dataToSend);
+        await httpClient.post(API_ENDPOINTS.ADMIN_COMPANIES, dataToSend);
         setSuccess('Company created successfully');
       }
 
@@ -63,14 +104,13 @@ const CompanyManagement = () => {
       setEditingCompanyId(null);
       setIsAddingNew(false);
 
-      // Refresh companies data from backend to get latest
-      await refetch();
+      await reloadAfterChange();
 
       // Hide success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error saving company:', err);
-      setError(err.response?.data?.message || 'Failed to save company');
+      setError(getErrorMessage(err, 'Failed to save company'));
       // Hide error message after 5 seconds
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -118,15 +158,14 @@ const CompanyManagement = () => {
     if (!deleteConfirmation) return;
 
     try {
-      await httpClient.delete(API_ENDPOINTS.COMPANY_BY_ID(deleteConfirmation.id));
+      await httpClient.delete(API_ENDPOINTS.ADMIN_COMPANY_BY_ID(deleteConfirmation.id));
       setSuccess('Company deleted successfully');
       setDeleteConfirmation(null);
 
-      // Refresh companies data from backend to get latest
-      await refetch();
+      await reloadAfterChange();
     } catch (err) {
       console.error('Error deleting company:', err);
-      setError(err.response?.data?.message || 'Failed to delete company');
+      setError(getErrorMessage(err, 'Failed to delete company'));
       setDeleteConfirmation(null);
     }
   };
@@ -242,9 +281,10 @@ const CompanyManagement = () => {
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Industry
+                                Industry *
                               </label>
                               <input
+                                required
                                 type="text"
                                 value={formData.industry}
                                 onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
@@ -254,9 +294,10 @@ const CompanyManagement = () => {
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Size
+                                Size *
                               </label>
                               <input
+                                required
                                 type="text"
                                 value={formData.size}
                                 onChange={(e) => setFormData({ ...formData, size: e.target.value })}
@@ -281,9 +322,10 @@ const CompanyManagement = () => {
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Founded
+                                Founded *
                               </label>
                               <input
+                                required
                                 type="number"
                                 min="1800"
                                 max={new Date().getFullYear()}
@@ -310,9 +352,10 @@ const CompanyManagement = () => {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Logo Path
+                                Logo Path *
                               </label>
                               <input
+                                required
                                 type="text"
                                 value={formData.logo}
                                 onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
@@ -322,9 +365,10 @@ const CompanyManagement = () => {
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Locations
+                                Locations *
                               </label>
                               <input
+                                required
                                 type="text"
                                 value={formData.locations}
                                 onChange={(e) => setFormData({ ...formData, locations: e.target.value })}
@@ -334,9 +378,10 @@ const CompanyManagement = () => {
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Website
+                                Website *
                               </label>
                               <input
+                                required
                                 type="url"
                                 value={formData.website}
                                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
@@ -347,9 +392,10 @@ const CompanyManagement = () => {
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Description
+                              Description *
                             </label>
                             <textarea
+                              required
                               rows={2}
                               value={formData.description}
                               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -487,9 +533,10 @@ const CompanyManagement = () => {
                                   </div>
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Industry
+                                      Industry *
                                     </label>
                                     <input
+                                      required
                                       type="text"
                                       value={formData.industry}
                                       onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
@@ -499,9 +546,10 @@ const CompanyManagement = () => {
                                   </div>
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Size
+                                      Size *
                                     </label>
                                     <input
+                                      required
                                       type="text"
                                       value={formData.size}
                                       onChange={(e) => setFormData({ ...formData, size: e.target.value })}
@@ -526,9 +574,10 @@ const CompanyManagement = () => {
                                   </div>
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Founded
+                                      Founded *
                                     </label>
                                     <input
+                                      required
                                       type="number"
                                       min="1800"
                                       max={new Date().getFullYear()}
@@ -555,9 +604,10 @@ const CompanyManagement = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Logo Path
+                                      Logo Path *
                                     </label>
                                     <input
+                                      required
                                       type="text"
                                       value={formData.logo}
                                       onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
@@ -567,9 +617,10 @@ const CompanyManagement = () => {
                                   </div>
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Locations
+                                      Locations *
                                     </label>
                                     <input
+                                      required
                                       type="text"
                                       value={formData.locations}
                                       onChange={(e) => setFormData({ ...formData, locations: e.target.value })}
@@ -579,9 +630,10 @@ const CompanyManagement = () => {
                                   </div>
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                      Website
+                                      Website *
                                     </label>
                                     <input
+                                      required
                                       type="url"
                                       value={formData.website}
                                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
@@ -592,9 +644,10 @@ const CompanyManagement = () => {
                                 </div>
                                 <div>
                                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Description
+                                    Description *
                                   </label>
                                   <textarea
+                                    required
                                     rows={2}
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}

@@ -44,6 +44,15 @@ class SecurityHeadersTest {
     private ReadCompanyUseCase readCompanyUseCase;
 
     @MockitoBean
+    private com.seby.jobleaf.domain.port.in.company.CreateCompanyUseCase createCompanyUseCase;
+
+    @MockitoBean
+    private com.seby.jobleaf.domain.port.in.company.UpdateCompanyUseCase updateCompanyUseCase;
+
+    @MockitoBean
+    private com.seby.jobleaf.domain.port.in.company.DeleteCompanyUseCase deleteCompanyUseCase;
+
+    @MockitoBean
     private CompanyWebMapper companyWebMapper;
 
     private static void assertSecurityHeaders(ResultActions result) throws Exception {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useTheme } from "../../context/ThemeContext";
 import httpClient from "../../config/httpClient";
 import { API_ENDPOINTS } from "../../config/api";
 import { clearSession, isSessionExpired } from "../../utils/authSession";
@@ -9,7 +8,6 @@ import { clearSession, isSessionExpired } from "../../utils/authSession";
 const STATUS_NEW = "NEW";
 
 const ContactMessages = () => {
-  const { theme } = useTheme();
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedMessageId, setExpandedMessageId] = useState(null);

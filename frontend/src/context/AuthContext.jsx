@@ -288,7 +288,7 @@ export const AuthProvider = ({ children }) => {
       setUser(updatedUser);
       setIsLoading(false);
       return { success: true, user: updatedUser };
-    } catch (error) {
+    } catch {
       setIsLoading(false);
       return { success: false, error: 'Failed to update profile' };
     }
