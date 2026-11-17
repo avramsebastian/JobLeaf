@@ -43,9 +43,6 @@ public class JobLeafUserEntity extends BaseEntity {
     @JoinColumn(name = "role_id", nullable = false)
     private RoleEntity role;
 
-    /**
-     * Company of an employer; {@code null} for job seekers and admins.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private CompanyEntity company;

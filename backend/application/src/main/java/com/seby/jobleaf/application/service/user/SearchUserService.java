@@ -30,7 +30,6 @@ public class SearchUserService implements SearchUserUseCase {
     @Transactional(readOnly = true)
     public JobLeafUser searchByEmail(String email) {
         Objects.requireNonNull(email, "email");
-        // The repository lower-cases and trims the email, like at registration
         var user = userRepositoryPort.findByEmail(email).orElseThrow(() -> {
             log.info("No user found for the searched email");
             return UserNotFoundException.byEmail(email.trim());

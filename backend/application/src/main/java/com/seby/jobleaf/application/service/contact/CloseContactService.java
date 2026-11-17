@@ -37,7 +37,6 @@ public class CloseContactService implements CloseContactUseCase {
                     return new ContactNotFoundException(id);
                 });
 
-        // Idempotent: closing twice is not an error, and saving nothing avoids an empty audit revision
         if (contact.isClosed()) {
             log.info("Contact {} was already closed", id);
             return contact;
