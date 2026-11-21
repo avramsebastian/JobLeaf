@@ -1,7 +1,7 @@
 package com.seby.jobleaf.domain.exceptions.user;
 
 import com.seby.jobleaf.domain.exceptions.domain.LocalizedException;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.RoleName;
 
 import java.util.UUID;
 

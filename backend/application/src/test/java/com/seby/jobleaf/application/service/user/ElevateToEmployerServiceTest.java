@@ -2,8 +2,8 @@ package com.seby.jobleaf.application.service.user;
 
 import com.seby.jobleaf.domain.exceptions.user.UserNotFoundException;
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
-import com.seby.jobleaf.domain.model.JobLeafUser;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

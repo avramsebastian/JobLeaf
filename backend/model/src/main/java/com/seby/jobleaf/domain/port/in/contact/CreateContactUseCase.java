@@ -1,8 +1,8 @@
 package com.seby.jobleaf.domain.port.in.contact;
 
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
-import com.seby.jobleaf.domain.model.Contact;
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.contact.Contact;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 
 import java.util.Objects;
 import java.util.UUID;

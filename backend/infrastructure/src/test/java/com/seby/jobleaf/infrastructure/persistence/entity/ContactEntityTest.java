@@ -49,7 +49,7 @@ class ContactEntityTest {
 
         // When
         ContactEntity entity = new ContactEntity(name, email, userType, subject, message,
-                com.seby.jobleaf.domain.model.ContactStatus.CLOSED);
+                com.seby.jobleaf.domain.model.contact.ContactStatus.CLOSED);
 
         // Then
         assertThat(entity.getName()).isEqualTo(name);
@@ -57,12 +57,12 @@ class ContactEntityTest {
         assertThat(entity.getUserType()).isEqualTo(userType);
         assertThat(entity.getSubject()).isEqualTo(subject);
         assertThat(entity.getMessage()).isEqualTo(message);
-        assertThat(entity.getStatus()).isEqualTo(com.seby.jobleaf.domain.model.ContactStatus.CLOSED);
+        assertThat(entity.getStatus()).isEqualTo(com.seby.jobleaf.domain.model.contact.ContactStatus.CLOSED);
     }
 
     @Test
     @DisplayName("Should start as NEW when created with the no-arguments constructor")
     void shouldDefaultToNewStatus() {
-        assertThat(new ContactEntity().getStatus()).isEqualTo(com.seby.jobleaf.domain.model.ContactStatus.NEW);
+        assertThat(new ContactEntity().getStatus()).isEqualTo(com.seby.jobleaf.domain.model.contact.ContactStatus.NEW);
     }
 }

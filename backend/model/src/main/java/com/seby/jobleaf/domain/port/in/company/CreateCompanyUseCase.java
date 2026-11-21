@@ -1,7 +1,7 @@
 package com.seby.jobleaf.domain.port.in.company;
 
-import com.seby.jobleaf.domain.model.Company;
-import com.seby.jobleaf.domain.model.CompanyDetails;
+import com.seby.jobleaf.domain.model.company.Company;
+import com.seby.jobleaf.domain.model.company.CompanyDetails;
 
 /**
  * Inbound port for the admin creating a company.

@@ -1,7 +1,7 @@
 package com.seby.jobleaf.domain.port.in.contact;
 
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 import com.seby.jobleaf.domain.port.in.contact.CreateContactUseCase.CreateContactCommand;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

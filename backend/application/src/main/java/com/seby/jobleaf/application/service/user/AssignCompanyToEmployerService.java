@@ -2,7 +2,7 @@ package com.seby.jobleaf.application.service.user;
 
 import com.seby.jobleaf.domain.exceptions.company.CompanyNotFoundException;
 import com.seby.jobleaf.domain.exceptions.user.UserNotFoundException;
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.domain.port.in.user.AssignCompanyToEmployerUseCase;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import com.seby.jobleaf.domain.port.out.company.CompanyRepositoryPort;

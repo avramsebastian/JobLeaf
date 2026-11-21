@@ -41,6 +41,14 @@ public class PathsConfig {
         );
     }
 
+    @Bean(name = "employerPaths")
+    public List<String> employerPaths() {
+        return List.of(
+                "/jobleaf/jobs/employer",
+                "/jobleaf/jobs/{jobId}/status/employer"
+        );
+    }
+
     @Bean(name = "securedPaths")
     public List<String> securedPaths() {
         return List.of(
@@ -56,5 +64,4 @@ public class PathsConfig {
                 "/error"
         );
     }
-
 }

@@ -1,8 +1,8 @@
 package com.seby.jobleaf.application.service.contact;
 
 import com.seby.jobleaf.domain.exceptions.contact.ContactNotFoundException;
-import com.seby.jobleaf.domain.model.Contact;
-import com.seby.jobleaf.domain.model.ContactStatus;
+import com.seby.jobleaf.domain.model.contact.Contact;
+import com.seby.jobleaf.domain.model.contact.ContactStatus;
 import com.seby.jobleaf.domain.port.out.contact.ContactRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

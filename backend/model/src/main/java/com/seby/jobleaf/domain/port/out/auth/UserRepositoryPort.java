@@ -1,7 +1,7 @@
 package com.seby.jobleaf.domain.port.out.auth;
 
-import com.seby.jobleaf.domain.model.JobLeafUser;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.RoleName;
 
 import java.util.Optional;
 import java.util.UUID;

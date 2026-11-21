@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.user;
 
 import lombok.experimental.UtilityClass;
 

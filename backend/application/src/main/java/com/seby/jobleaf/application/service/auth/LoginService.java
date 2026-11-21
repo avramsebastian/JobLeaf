@@ -1,8 +1,8 @@
 package com.seby.jobleaf.application.service.auth;
 
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
-import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.auth.AuthToken;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase;
 import com.seby.jobleaf.domain.port.out.auth.CredentialsVerifierPort;
 import com.seby.jobleaf.domain.port.out.auth.TokenIssuerPort;

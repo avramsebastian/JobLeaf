@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.contact.Contact;
 import com.seby.jobleaf.infrastructure.persistence.entity.ContactEntity;
 import com.seby.jobleaf.infrastructure.persistence.mapper.ContactPersistenceMapper;
 import com.seby.jobleaf.infrastructure.persistence.repository.ContactJpaRepository;
@@ -42,7 +42,7 @@ class ContactRepositoryAdapterTest {
                 "jane@example.com",
                 "JobSeeker",
                 "Support",
-                "Need help logging in", com.seby.jobleaf.domain.model.ContactStatus.NEW,
+                "Need help logging in", com.seby.jobleaf.domain.model.contact.ContactStatus.NEW,
                 Instant.now(),
                 null,
                 null,
@@ -80,7 +80,7 @@ class ContactRepositoryAdapterTest {
                 "jane@example.com",
                 "JobSeeker",
                 "Support",
-                "Need help logging in", com.seby.jobleaf.domain.model.ContactStatus.NEW,
+                "Need help logging in", com.seby.jobleaf.domain.model.contact.ContactStatus.NEW,
                 Instant.now(),
                 null,
                 null,

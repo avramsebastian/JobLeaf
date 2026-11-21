@@ -1,5 +1,6 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.user;
 
+import com.seby.jobleaf.domain.exceptions.user.EmployerAccessException;
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 
 import java.time.Instant;
@@ -49,5 +50,22 @@ public record JobLeafUser(
         if (!isEmployer()) {
             throw UserRoleConflictException.notAnEmployer(id, role);
         }
+    }
+
+    /**
+     * Rule for managing jobs: the user must be an employer and assigned to a company; employers only ever work on
+     * the jobs of that company.
+     *
+     * @return the id of the employer's company
+     * @throws EmployerAccessException if the user is not an employer or has no company yet
+     */
+    public UUID requireEmployerCompany() {
+        if (!isEmployer()) {
+            throw EmployerAccessException.notAnEmployer(id);
+        }
+        if (companyId == null) {
+            throw EmployerAccessException.noCompany(id);
+        }
+        return companyId;
     }
 }

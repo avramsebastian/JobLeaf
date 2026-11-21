@@ -6,7 +6,7 @@ import com.seby.jobleaf.apis.generated.model.LogoutResponse;
 import com.seby.jobleaf.apis.generated.model.RegisterRequest;
 import com.seby.jobleaf.apis.generated.model.RegisterResponse;
 import com.seby.jobleaf.apis.generated.model.UserResponse;
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginCommand;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginResult;
 import com.seby.jobleaf.domain.port.in.auth.RegisterUseCase.RegisterCommand;

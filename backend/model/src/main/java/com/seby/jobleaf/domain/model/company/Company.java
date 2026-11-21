@@ -1,4 +1,6 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.company;
+
+import com.seby.jobleaf.domain.model.job.Job;
 
 import java.time.Instant;
 import java.util.List;

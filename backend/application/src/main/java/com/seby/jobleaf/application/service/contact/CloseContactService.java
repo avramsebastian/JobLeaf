@@ -1,7 +1,7 @@
 package com.seby.jobleaf.application.service.contact;
 
 import com.seby.jobleaf.domain.exceptions.contact.ContactNotFoundException;
-import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.contact.Contact;
 import com.seby.jobleaf.domain.port.in.contact.CloseContactUseCase;
 import com.seby.jobleaf.domain.port.out.contact.ContactRepositoryPort;
 import lombok.RequiredArgsConstructor;

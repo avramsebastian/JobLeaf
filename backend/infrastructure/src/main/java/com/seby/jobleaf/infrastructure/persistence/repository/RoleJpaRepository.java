@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.repository;
 
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.infrastructure.persistence.entity.RoleEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 

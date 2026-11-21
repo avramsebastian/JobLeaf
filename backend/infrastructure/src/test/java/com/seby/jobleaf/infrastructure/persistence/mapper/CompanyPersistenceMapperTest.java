@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.mapper;
 
-import com.seby.jobleaf.domain.model.Company;
+import com.seby.jobleaf.domain.model.company.Company;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobEntity;
 import org.junit.jupiter.api.BeforeEach;

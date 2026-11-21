@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.user;
 
 /**
  * The roles a user can have. The constant names are also the Spring Security authorities, the values stored in the
