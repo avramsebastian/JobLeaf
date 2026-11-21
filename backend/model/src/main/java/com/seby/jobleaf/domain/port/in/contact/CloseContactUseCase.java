@@ -1,6 +1,6 @@
 package com.seby.jobleaf.domain.port.in.contact;
 
-import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.contact.Contact;
 
 import java.util.UUID;
 

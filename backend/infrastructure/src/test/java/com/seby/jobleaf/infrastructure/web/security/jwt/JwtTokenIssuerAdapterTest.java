@@ -1,8 +1,8 @@
 package com.seby.jobleaf.infrastructure.web.security.jwt;
 
-import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.JobLeafUser;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.auth.AuthToken;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.infrastructure.web.security.AccessTokenCookies;
 import com.seby.jobleaf.infrastructure.web.security.filter.JwtTokenValidatorFilter;
 import io.jsonwebtoken.Claims;

@@ -1,7 +1,7 @@
 package com.seby.jobleaf.application.service.contact;
 
-import com.seby.jobleaf.domain.model.Contact;
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.contact.Contact;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 import com.seby.jobleaf.domain.port.in.contact.CreateContactUseCase.CreateContactCommand;
 import com.seby.jobleaf.domain.port.out.contact.ContactRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
@@ -71,7 +71,7 @@ class CreateContactServiceTest {
         CreateContactCommand command = new CreateContactCommand(
                 null, "John Doe", "john@example.com", "Employer", "Job Posting", "I have a question.");
         Contact persisted = new Contact(UUID.randomUUID(), "John Doe", "john@example.com", "Employer",
-                "Job Posting", "I have a question.", com.seby.jobleaf.domain.model.ContactStatus.NEW, Instant.now(), SystemActor.ID, Instant.now(), SystemActor.ID);
+                "Job Posting", "I have a question.", com.seby.jobleaf.domain.model.contact.ContactStatus.NEW, Instant.now(), SystemActor.ID, Instant.now(), SystemActor.ID);
         when(contactRepositoryPort.save(any(Contact.class))).thenReturn(persisted);
 
         // When

@@ -1,7 +1,7 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.JobLeafUser;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort.NewUser;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobLeafUserEntity;

@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.mapper;
 
-import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.contact.Contact;
 import com.seby.jobleaf.infrastructure.persistence.entity.ContactEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,7 +76,7 @@ class ContactPersistenceMapperTest {
                 "bob@example.com",
                 "other",
                 "Partnership Inquiry",
-                "Interested in partnering with JobLeaf.", com.seby.jobleaf.domain.model.ContactStatus.NEW,
+                "Interested in partnering with JobLeaf.", com.seby.jobleaf.domain.model.contact.ContactStatus.NEW,
                 createdAt,
                 null,
                 null,

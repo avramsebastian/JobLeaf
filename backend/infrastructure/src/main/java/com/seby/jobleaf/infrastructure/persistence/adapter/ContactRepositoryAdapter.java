@@ -1,8 +1,8 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.Contact;
-import com.seby.jobleaf.domain.model.ContactSort;
-import com.seby.jobleaf.domain.model.ContactStatus;
+import com.seby.jobleaf.domain.model.contact.Contact;
+import com.seby.jobleaf.domain.model.contact.ContactSort;
+import com.seby.jobleaf.domain.model.contact.ContactStatus;
 import com.seby.jobleaf.domain.model.page.PageQuery;
 import com.seby.jobleaf.domain.model.page.PageResult;
 import com.seby.jobleaf.domain.model.page.SortDirection;

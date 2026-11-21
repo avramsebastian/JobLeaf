@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -17,40 +18,39 @@ const MyJobs = () => {
   const [updatingJobId, setUpdatingJobId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
-  const [companyInfo, setCompanyInfo] = useState(null);
+  // The jobs do not carry company details; the logged-in employer's user does (from login)
+  const companyInfo = user?.companyName ? { id: user.companyId, name: user.companyName } : null;
 
-  useEffect(() => {
-    if (isAuthenticated && isEmployer) {
-      fetchJobs();
-    }
-  }, [isAuthenticated, isEmployer]);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async (signal) => {
     try {
       setIsLoading(true);
       setError('');
-      const response = await httpClient.get(API_ENDPOINTS.EMPLOYER_JOBS);
-      const jobsData = response.data || [];
-      setJobs(jobsData);
-
-      // Extract company info from first job (all jobs belong to same company)
-      if (jobsData.length > 0) {
-        setCompanyInfo({
-          id: jobsData[0].companyId,
-          name: jobsData[0].companyName,
-          logo: jobsData[0].companyLogo
-        });
-      }
-
-      // Also refresh the global jobs cache so JobDetail page can find newly created jobs
-      await forceRefresh();
+      // The backend only returns jobs of the employer's own company (it reads the company from the database)
+      const response = await httpClient.get(API_ENDPOINTS.EMPLOYER_JOBS, { signal });
+      setJobs(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
+      if (axios.isCancel(err)) {
+        return;
+      }
       console.error('Error fetching jobs:', err);
-      setError(err.response?.data?.message || 'Failed to fetch jobs');
+      // e.g. 403 "You are not assigned to a company yet. Ask an admin to assign you to your company"
+      setError(err.response?.data?.detail || 'Failed to fetch jobs');
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isEmployer) {
+      return undefined;
+    }
+    // Cancelled on unmount (and on StrictMode's test unmount in development, so the list loads once)
+    const controller = new AbortController();
+    fetchJobs(controller.signal);
+    return () => controller.abort();
+  }, [isAuthenticated, isEmployer, fetchJobs]);
 
   const handleStatusChange = (jobId, newStatus) => {
     // Show confirmation modal
@@ -82,9 +82,13 @@ const MyJobs = () => {
       setTimeout(() => setSuccess(''), 3000);
 
       setPendingStatusChange(null);
+
+      // Publishing or closing changes which jobs job seekers see: refresh the cached public list
+      forceRefresh();
     } catch (err) {
       console.error('Error updating job status:', err);
-      setError(err.response?.data?.message || 'Failed to update job status');
+      // e.g. 409 "A job can not change from ACTIVE to DRAFT" or 404 for a job of another company
+      setError(err.response?.data?.detail || 'Failed to update job status');
     } finally {
       setUpdatingJobId(null);
     }
@@ -359,10 +363,11 @@ const MyJobs = () => {
                           >
                             C
                           </button>
+                          {/* Only shows the status: a job can not go back to DRAFT once published or closed */}
                           <button
-                            onClick={() => handleStatusChange(job.id, 'DRAFT')}
-                            disabled={updatingJobId === job.id || job.status === 'DRAFT'}
-                            title="Set to Draft"
+                            type="button"
+                            disabled
+                            title={job.status === 'DRAFT' ? 'Draft: publish it with A' : 'A published or closed job can not go back to draft'}
                             className={`px-2 py-1 rounded text-xs font-bold transition-all ${
                               job.status === 'DRAFT'
                                 ? 'bg-yellow-600 text-white'
@@ -450,11 +455,6 @@ const MyJobs = () => {
                 {pendingStatusChange.newStatus === 'CLOSED' && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2 italic">
                     Closing this job will stop accepting new applications.
-                  </p>
-                )}
-                {pendingStatusChange.newStatus === 'DRAFT' && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2 italic">
-                    Setting to draft will hide this job from job seekers.
                   </p>
                 )}
                 {pendingStatusChange.newStatus === 'ACTIVE' && (

@@ -1,8 +1,8 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.Company;
-import com.seby.jobleaf.domain.model.CompanyDetails;
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.company.Company;
+import com.seby.jobleaf.domain.model.company.CompanyDetails;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobEntity;
 import com.seby.jobleaf.infrastructure.persistence.mapper.CompanyPersistenceMapper;

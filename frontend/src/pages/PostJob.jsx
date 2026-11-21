@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useJobsData } from '../contexts/JobsDataContext';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
+
+// The date picker gives a day ("2026-12-31"); applications stay open until the end of that day, local time
+const deadlineEndOfDay = (day) => new Date(`${day}T23:59:59`);
 
 const PostJob = () => {
   const [formData, setFormData] = useState({
@@ -13,7 +15,7 @@ const PostJob = () => {
     jobType: 'Full-time',
     workType: 'On-site',
     category: 'Technology',
-    experienceLevel: 'Mid-level',
+    experienceLevel: 'Mid Level',
     salaryMin: '',
     salaryMax: '',
     salaryCurrency: 'USD',
@@ -29,13 +31,13 @@ const PostJob = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user, isEmployer, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { forceRefresh } = useJobsData();
   const navigate = useNavigate();
 
-  const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+  // Exactly the values the backend accepts (CreateJobRequest enums in the OpenAPI)
+  const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Freelance'];
   const workTypes = ['Remote', 'Hybrid', 'On-site'];
-  const categories = ['Technology', 'Marketing', 'Sales', 'Design', 'Finance', 'Operations', 'Other'];
-  const experienceLevels = ['Entry-level', 'Mid-level', 'Senior-level', 'Executive'];
+  const categories = ['Technology', 'Design', 'Marketing', 'Sales', 'Finance', 'Healthcare', 'Education', 'Operations'];
+  const experienceLevels = ['Entry Level', 'Mid Level', 'Senior Level', 'Executive Level'];
   const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'INR'];
   const salaryPeriods = ['year', 'month', 'hour'];
 
@@ -99,8 +101,14 @@ const PostJob = () => {
       newErrors.salaryMax = 'Maximum salary must be at least $1,000';
     }
 
-    if (parseInt(formData.salaryMax) <= parseInt(formData.salaryMin)) {
-      newErrors.salaryMax = 'Maximum salary must be higher than minimum salary';
+    if (parseFloat(formData.salaryMax) < parseFloat(formData.salaryMin)) {
+      newErrors.salaryMax = 'Maximum salary must be greater than or equal to the minimum salary';
+    }
+
+    if (!formData.applicationDeadline) {
+      newErrors.applicationDeadline = 'Application deadline is required';
+    } else if (deadlineEndOfDay(formData.applicationDeadline) <= new Date()) {
+      newErrors.applicationDeadline = 'Application deadline must be in the future';
     }
 
     const validRequirements = formData.requirements.filter(req => req.trim());
@@ -127,9 +135,9 @@ const PostJob = () => {
     setIsSubmitting(true);
 
     try {
-      // Filter out empty requirements and benefits and convert to JSON string
-      const requirementsList = formData.requirements.filter(req => req.trim());
-      const benefitsList = formData.benefits.filter(benefit => benefit.trim());
+      // Without empty entries; sent as JSON arrays like the API expects
+      const requirementsList = formData.requirements.map(req => req.trim()).filter(Boolean);
+      const benefitsList = formData.benefits.map(benefit => benefit.trim()).filter(Boolean);
 
       // Prepare job data for backend
       const jobData = {
@@ -144,27 +152,28 @@ const PostJob = () => {
         salaryMax: parseFloat(formData.salaryMax),
         salaryCurrency: formData.salaryCurrency,
         salaryPeriod: formData.salaryPeriod,
-        requirements: requirementsList.length > 0 ? JSON.stringify(requirementsList) : null,
-        benefits: benefitsList.length > 0 ? JSON.stringify(benefitsList) : null,
-        applicationDeadline: formData.applicationDeadline ? new Date(formData.applicationDeadline).toISOString() : null,
+        requirements: requirementsList,
+        benefits: benefitsList,
+        applicationDeadline: deadlineEndOfDay(formData.applicationDeadline).toISOString(),
         remote: formData.workType === 'Remote' || formData.remote,
         featured: formData.featured,
-        urgent: formData.urgent,
-        status: 'ACTIVE'
+        urgent: formData.urgent
+        // No status and no company: the backend always creates a DRAFT for the employer's own company
       };
 
       await httpClient.post(API_ENDPOINTS.POST_JOB, jobData);
 
-      // Force refresh the jobs cache so the new job appears immediately
-      await forceRefresh();
-
+      // A draft is not public yet, so the public job list does not need a refresh here
       navigate('/employer/jobs', {
-        state: { message: 'Job posted successfully!', type: 'success' }
+        state: { message: 'Job saved as a draft. Publish it with the A button when you are ready.', type: 'success' }
       });
     } catch (error) {
       console.error('Error posting job:', error);
+      // Problem details: field problems in "errors", the summary in "detail"
+      const data = error.response?.data;
       setErrors({
-        general: error.response?.data?.message || 'Failed to post job. Please try again.'
+        ...(data?.errors && typeof data.errors === 'object' ? data.errors : {}),
+        general: data?.detail || 'Failed to post job. Please try again.'
       });
     } finally {
       setIsSubmitting(false);
@@ -413,7 +422,7 @@ const PostJob = () => {
             {/* Application Deadline */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Application Deadline (Optional)
+                Application Deadline *
               </label>
               <input
                 type="date"
@@ -421,8 +430,11 @@ const PostJob = () => {
                 value={formData.applicationDeadline}
                 onChange={handleChange}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 outline-none"
+                className={`w-full px-4 py-3 bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 outline-none ${
+                  errors.applicationDeadline ? 'border-red-300' : 'border-gray-300'
+                }`}
               />
+              {errors.applicationDeadline && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.applicationDeadline}</p>}
             </div>
 
             {/* Additional Options */}

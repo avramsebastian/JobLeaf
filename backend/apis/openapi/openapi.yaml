@@ -21,6 +21,8 @@ tags:
     description: Contacts management endpoints.
   - name: User
     description: User management endpoints for the admin.
+  - name: Job
+    description: Job management endpoints for employers.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -356,6 +358,96 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/employer:
+    get:
+      tags: [ Job ]
+      operationId: listEmployerJobs
+      summary: List the jobs of the employer's company.
+      description: >-
+        Returns all jobs (every status, newest first) of the company the logged-in employer is assigned to.
+        403 if the user is not an employer or has no company yet. Requires ROLE_EMPLOYER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Jobs retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ Job ]
+      operationId: createJob
+      summary: Create a job for the employer's company.
+      description: >-
+        Creates a job in status DRAFT for the company of the logged-in employer (the company is never taken from
+        the request). All fields are required. Requires ROLE_EMPLOYER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '201':
+          description: Job created as DRAFT.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/{jobId}/status/employer:
+    patch:
+      tags: [ Job ]
+      operationId: updateJobStatus
+      summary: Change the status of a job.
+      description: >-
+        Publishes (ACTIVE), closes (CLOSED) or reopens a job of the employer's own company. A job can not go back
+        to DRAFT once it left it; setting the current status changes nothing. Jobs of other companies answer 404.
+        Requires ROLE_EMPLOYER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/UpdateJobStatusRequest'
+      responses:
+        '200':
+          description: Job status updated.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -1128,6 +1220,98 @@ components:
           $ref: '#/components/schemas/DateTime'
         updatedBy:
           $ref: '#/components/schemas/Uuid'
+
+    JobStatus:
+      type: string
+      enum: [ DRAFT, ACTIVE, CLOSED ]
+      description: DRAFT when created, ACTIVE when published (visible to job seekers), CLOSED when no longer open.
+
+    UpdateJobStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
+
+    CreateJobRequest:
+      type: object
+      additionalProperties: false
+      description: A new job. The company is the employer's own and the status is always DRAFT.
+      required: [ title, location, workType, jobType, category, experienceLevel, salaryMin, salaryMax,
+                  salaryCurrency, salaryPeriod, description, requirements, benefits, applicationDeadline,
+                  featured, urgent, remote ]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: "Senior Frontend Developer"
+        location:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Bucharest"
+        workType:
+          type: string
+          enum: [ On-site, Remote, Hybrid ]
+        jobType:
+          type: string
+          enum: [ Full-time, Part-time, Contract, Freelance ]
+        category:
+          type: string
+          enum: [ Technology, Design, Marketing, Sales, Finance, Healthcare, Education, Operations ]
+        experienceLevel:
+          type: string
+          enum: [ Entry Level, Mid Level, Senior Level, Executive Level ]
+        salaryMin:
+          type: number
+          minimum: 0
+          example: 50000
+        salaryMax:
+          type: number
+          minimum: 0
+          description: Must be greater than or equal to salaryMin.
+          example: 80000
+        salaryCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO currency code.
+          example: "EUR"
+        salaryPeriod:
+          type: string
+          enum: [ hour, month, year ]
+        description:
+          type: string
+          minLength: 20
+          maxLength: 10000
+          example: "We are looking for a skilled frontend developer to join our team."
+        requirements:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+          example: [ "React", "TypeScript" ]
+        benefits:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+          example: [ "Health Insurance", "Remote Work" ]
+        applicationDeadline:
+          $ref: '#/components/schemas/DateTime'
+        featured:
+          type: boolean
+        urgent:
+          type: boolean
+        remote:
+          type: boolean
 
     ContactStatus:
       type: string

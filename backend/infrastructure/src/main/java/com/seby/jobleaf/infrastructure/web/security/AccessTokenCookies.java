@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
-import com.seby.jobleaf.domain.model.AuthToken;
+import com.seby.jobleaf.domain.model.auth.AuthToken;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;

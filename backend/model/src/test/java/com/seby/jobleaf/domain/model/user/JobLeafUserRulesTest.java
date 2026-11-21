@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.user;
 
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 import org.junit.jupiter.api.DisplayName;

@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.audit;
 
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 import com.seby.jobleaf.infrastructure.web.security.AuthenticatedUser;
 import lombok.experimental.UtilityClass;
 import org.springframework.security.core.Authentication;

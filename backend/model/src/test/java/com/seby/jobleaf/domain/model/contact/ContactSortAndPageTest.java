@@ -1,4 +1,6 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.contact;
+
+import com.seby.jobleaf.domain.model.user.SystemActor;
 
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.model.page.PageQuery;

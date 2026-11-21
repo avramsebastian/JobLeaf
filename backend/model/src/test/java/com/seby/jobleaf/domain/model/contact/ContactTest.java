@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.contact;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

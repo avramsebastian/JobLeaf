@@ -3,6 +3,8 @@ package com.seby.jobleaf.infrastructure.web.exception;
 import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
+import com.seby.jobleaf.domain.exceptions.job.InvalidJobStatusChangeException;
+import com.seby.jobleaf.domain.exceptions.user.EmployerAccessException;
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
@@ -87,6 +89,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             default -> "Authentication is required to access this resource";
         };
         return problem(HttpStatus.UNAUTHORIZED, detail, request);
+    }
+
+    /**
+     * The stored user may not manage jobs right now: no longer an employer, or not assigned to a company.
+     */
+    @ExceptionHandler(EmployerAccessException.class)
+    public ResponseEntity<ProblemDetail> handleEmployerAccess(EmployerAccessException exception, WebRequest request) {
+        log.debug("Employer access denied: {}", exception.getMessage());
+        return problem(HttpStatus.FORBIDDEN, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidJobStatusChangeException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidJobStatusChange(InvalidJobStatusChangeException exception,
+                                                                      WebRequest request) {
+        log.debug("Invalid job status change: {}", exception.getMessage());
+        return problem(HttpStatus.CONFLICT, exception.getMessage(), request);
     }
 
     /**

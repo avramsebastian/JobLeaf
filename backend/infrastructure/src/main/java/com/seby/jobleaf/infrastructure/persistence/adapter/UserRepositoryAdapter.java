@@ -1,13 +1,13 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobLeafUserEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.RoleEntity;
 import com.seby.jobleaf.infrastructure.persistence.mapper.JobLeafUserPersistenceMapper;
 import com.seby.jobleaf.infrastructure.persistence.repository.JobLeafUserJpaRepository;
 import com.seby.jobleaf.infrastructure.persistence.repository.RoleJpaRepository;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.repository.CompanyJpaRepository;
 import lombok.RequiredArgsConstructor;

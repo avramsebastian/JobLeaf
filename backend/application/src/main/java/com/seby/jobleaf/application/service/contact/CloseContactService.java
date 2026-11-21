@@ -1,7 +1,7 @@
 package com.seby.jobleaf.application.service.contact;
 
 import com.seby.jobleaf.domain.exceptions.contact.ContactNotFoundException;
-import com.seby.jobleaf.domain.model.Contact;
+import com.seby.jobleaf.domain.model.contact.Contact;
 import com.seby.jobleaf.domain.port.in.contact.CloseContactUseCase;
 import com.seby.jobleaf.domain.port.out.contact.ContactRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,6 @@ public class CloseContactService implements CloseContactUseCase {
                     return new ContactNotFoundException(id);
                 });
 
-        // Idempotent: closing twice is not an error, and saving nothing avoids an empty audit revision
         if (contact.isClosed()) {
             log.info("Contact {} was already closed", id);
             return contact;

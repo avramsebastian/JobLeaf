@@ -1,4 +1,4 @@
-package com.seby.jobleaf.domain.model;
+package com.seby.jobleaf.domain.model.company;
 
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 
