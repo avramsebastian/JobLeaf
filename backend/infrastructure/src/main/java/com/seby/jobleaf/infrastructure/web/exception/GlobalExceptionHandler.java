@@ -5,6 +5,8 @@ import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.job.InvalidJobStatusChangeException;
 import com.seby.jobleaf.domain.exceptions.user.EmployerAccessException;
+import com.seby.jobleaf.domain.exceptions.user.JobSeekerAccessException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
 import com.seby.jobleaf.domain.exceptions.domain.ResourceNotFoundException;
@@ -33,6 +35,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -94,6 +97,28 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /**
      * The stored user may not manage jobs right now: no longer an employer, or not assigned to a company.
      */
+    /**
+     * Only job seekers have a profile (checked against the stored user, the token can be outdated).
+     */
+    @ExceptionHandler(JobSeekerAccessException.class)
+    public ResponseEntity<ProblemDetail> handleJobSeekerAccess(JobSeekerAccessException exception,
+                                                               WebRequest request) {
+        log.debug("Job seeker access denied: {}", exception.getMessage());
+        return problem(HttpStatus.FORBIDDEN, exception.getMessage(), request);
+    }
+
+    /**
+     * An upload over the multipart limits (spring.servlet.multipart.*), rejected by Spring before the controller.
+     */
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException exception,
+                                                                          HttpHeaders headers, HttpStatusCode status,
+                                                                          WebRequest request) {
+        ProblemDetail body = exception.getBody();
+        body.setDetail("Files can be at most 10 MB each");
+        return handleExceptionInternal(exception, body, headers, status, request);
+    }
+
     @ExceptionHandler(EmployerAccessException.class)
     public ResponseEntity<ProblemDetail> handleEmployerAccess(EmployerAccessException exception, WebRequest request) {
         log.debug("Employer access denied: {}", exception.getMessage());
@@ -200,6 +225,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnexpected(Exception exception, WebRequest request) {
+        if (DisconnectedClientHelper.isClientDisconnectedException(exception)) {
+            return clientDisconnected(exception, request);
+        }
         log.error("Unhandled exception for {}", instancePath(request), exception);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, GENERIC_ERROR_DETAIL, request);
     }
@@ -246,6 +274,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception exception, Object body, HttpHeaders headers,
                                                              HttpStatusCode statusCode, WebRequest request) {
+        if (DisconnectedClientHelper.isClientDisconnectedException(exception)) {
+            return clientDisconnected(exception, request);
+        }
         if (statusCode.is5xxServerError()) {
             log.error("Request to {} failed with status {}", instancePath(request), statusCode.value(), exception);
         } else {
@@ -253,6 +284,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                     exception.getMessage());
         }
         return super.handleExceptionInternal(exception, body, headers, statusCode, request);
+    }
+
+    /**
+     * The browser closed the connection while we were still sending the answer (page reload, navigation, closed tab).
+     * Nothing failed on our side and there is nobody left to answer, so no error log and no error response:
+     * {@code null} tells Spring the exception is handled and nothing has to be written.
+     */
+    private <T> ResponseEntity<T> clientDisconnected(Exception exception, WebRequest request) {
+        log.debug("Client disconnected before the response to {} was sent: {}", instancePath(request),
+                exception.getMessage());
+        return null;
     }
 
     /**

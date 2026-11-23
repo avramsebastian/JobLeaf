@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import httpClient from '../config/httpClient';
 import { API_ENDPOINTS } from '../config/api';
 import { clearSession, getExpiresAt, isSessionExpired, saveSession } from '../utils/authSession';
 import { getRateLimitMessage } from '../utils/rateLimit';
+import { getProfile, getProfilePictureUrl } from '../services/profileService';
 
 // Turnstile token from the 'Verify you are human' box; the backend CaptchaFilter checks it on login and register
 const CAPTCHA_HEADER = 'X-Captcha-Token';
@@ -316,8 +317,49 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // The job seeker's profile picture as a blob URL, shared by the navbar and the profile page.
+  // Kept in memory only (never localStorage): it is reloaded after login or a page refresh.
+  const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+
+  const replacePictureUrl = (url) => {
+    setProfilePictureUrl(previous => {
+      // A blob URL keeps its image in memory until it is revoked
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+      return url;
+    });
+  };
+
+  const isJobSeeker = user?.role === 'ROLE_JOB_SEEKER';
+
+  /**
+   * Loads the picture again, e.g. after the profile page uploaded a new one. Only job seekers have a profile; the
+   * details are read first, so users without a picture do not cause a 404 on the picture endpoint.
+   */
+  const refreshProfilePicture = useCallback(async () => {
+    if (!isJobSeeker) {
+      replacePictureUrl(null);
+      return;
+    }
+    try {
+      const profile = await getProfile();
+      replacePictureUrl(profile?.hasProfilePicture ? await getProfilePictureUrl() : null);
+    } catch (error) {
+      console.warn('[Auth] Could not load the profile picture', error);
+      replacePictureUrl(null);
+    }
+  }, [isJobSeeker]);
+
+  // After login, after a page refresh with a restored session, and cleared on logout (user becomes null)
+  useEffect(() => {
+    refreshProfilePicture();
+  }, [user?.userId, refreshProfilePicture]);
+
   const value = {
     user,
+    profilePictureUrl,
+    refreshProfilePicture,
     isLoading,
     login,
     register,
@@ -326,7 +368,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     isAuthenticated: !!user,
     isEmployer: user?.role === 'ROLE_EMPLOYER',
-    isJobSeeker: user?.role === 'ROLE_JOB_SEEKER',
+    isJobSeeker,
     isAdmin: user?.role === 'ROLE_ADMIN'
   };
 

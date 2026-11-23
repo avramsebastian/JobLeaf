@@ -38,8 +38,12 @@ export const API_ENDPOINTS = {
   LOGOUT: "/auth/logout/public",
 
   // User endpoints
-  PROFILE: "/profile",
-  UPDATE_PROFILE: "/profile",
+  // Job seeker only (ROLE_JOB_SEEKER): the profile without files (GET), create or update it (PUT, multipart),
+  // and the two files on their own, so the profile details never carry megabytes
+  PROFILE: "/profile/jobseeker",
+  UPDATE_PROFILE: "/profile/jobseeker",
+  PROFILE_PICTURE: "/profile/picture/jobseeker",
+  PROFILE_RESUME: "/profile/resume/jobseeker",
 
   // Contact endpoints
   CONTACTS: "/contacts/public",

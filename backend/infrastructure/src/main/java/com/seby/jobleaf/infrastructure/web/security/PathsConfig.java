@@ -49,6 +49,15 @@ public class PathsConfig {
         );
     }
 
+    @Bean(name = "jobSeekerPaths")
+    public List<String> jobSeekerPaths() {
+        return List.of(
+                "/jobleaf/profile/jobseeker",
+                "/jobleaf/profile/picture/jobseeker",
+                "/jobleaf/profile/resume/jobseeker"
+        );
+    }
+
     @Bean(name = "securedPaths")
     public List<String> securedPaths() {
         return List.of(

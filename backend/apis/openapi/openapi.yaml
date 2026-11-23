@@ -23,6 +23,8 @@ tags:
     description: User management endpoints for the admin.
   - name: Job
     description: Job management endpoints for employers.
+  - name: Profile
+    description: Job seeker profile with picture and resume.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -448,6 +450,123 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
         '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getProfile
+      summary: Get the job seeker's profile.
+      description: >-
+        Returns the profile of the logged-in job seeker WITHOUT the file contents (only names and types), so the
+        response stays small. The files have their own endpoints. 404 if no profile was saved yet.
+        Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Profile found.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    put:
+      tags: [ Profile ]
+      operationId: createOrUpdateProfile
+      summary: Create or update the job seeker's profile.
+      description: >-
+        Multipart request: the 'profile' part (JSON) is required every time; 'profilePicture' (jpg, jpeg or png) and
+        'resume' (pdf) are optional, max 10 MB each. A file that is not sent keeps the stored one. The content of
+        every file is checked, not only its name. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ profile ]
+              properties:
+                profile:
+                  $ref: '#/components/schemas/ProfileRequest'
+                profilePicture:
+                  type: string
+                  format: binary
+                  description: jpg, jpeg or png, max 10 MB.
+                resume:
+                  type: string
+                  format: binary
+                  description: pdf, max 10 MB.
+            encoding:
+              profile:
+                contentType: application/json
+      responses:
+        '200':
+          description: Profile saved.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/picture/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getProfilePicture
+      summary: Get the job seeker's profile picture.
+      description: The picture as image bytes, shown inline. 404 if there is none. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/resume/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getResume
+      summary: Download the job seeker's resume.
+      description: The resume as a PDF download (Content-Disposition attachment). 404 if there is none. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: The resume.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -1313,6 +1432,71 @@ components:
         remote:
           type: boolean
 
+    ProfileRequest:
+      type: object
+      additionalProperties: false
+      description: The text part of a profile; the files are separate parts of the same request.
+      required: [ jobTitle, location, experienceLevel, professionalBio ]
+      properties:
+        jobTitle:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Frontend Developer"
+        location:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Bucharest"
+        experienceLevel:
+          type: string
+          enum: [ Entry Level, Mid Level, Senior Level, Executive Level ]
+        professionalBio:
+          type: string
+          minLength: 20
+          maxLength: 5000
+          example: "Frontend developer with 4 years of React experience."
+        portfolioWebsite:
+          type: string
+          maxLength: 500
+          pattern: '^https?://.+'
+          example: "https://my-portfolio.example"
+
+    ProfileResponse:
+      type: object
+      additionalProperties: false
+      description: A profile without file contents; the names and types say which files exist.
+      required: [ id, jobTitle, location, experienceLevel, professionalBio, hasProfilePicture, hasResume ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        jobTitle:
+          type: string
+        location:
+          type: string
+        experienceLevel:
+          type: string
+        professionalBio:
+          type: string
+        portfolioWebsite:
+          type: string
+        hasProfilePicture:
+          type: boolean
+        profilePictureName:
+          type: string
+        profilePictureType:
+          type: string
+        hasResume:
+          type: boolean
+        resumeName:
+          type: string
+        resumeType:
+          type: string
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
     ContactStatus:
       type: string
       enum: [NEW, CLOSED]
@@ -1474,6 +1658,12 @@ components:
             $ref: '#/components/schemas/ProblemDetails'
     UnsupportedMediaType:
       description: Unsupported Media Type
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PayloadTooLarge:
+      description: Payload Too Large. A file is bigger than 10 MB (or the whole request bigger than 21 MB).
       content:
         application/problem+json:
           schema:

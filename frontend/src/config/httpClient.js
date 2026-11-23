@@ -33,7 +33,11 @@ httpClient.interceptors.request.use(
     // Add Accept header with default value
     // Developers can override this by passing headers in the request config
 
-    config.headers.Accept = DEFAULT_ACCEPT_HEADER;
+    // File downloads (responseType "blob") keep the Accept header they set themselves, e.g. "application/pdf":
+    // the backend answers those endpoints with the file type, not JSON, and would refuse the JSON type with 406
+    if (config.responseType !== "blob") {
+      config.headers.Accept = DEFAULT_ACCEPT_HEADER;
+    }
 
     // No Authorization header: the JWT is in an HttpOnly cookie that the browser sends by itself
     // (withCredentials: true), on public endpoints too, so the backend always knows who made the request.

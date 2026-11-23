@@ -1,6 +1,7 @@
 package com.seby.jobleaf.domain.model.user;
 
 import com.seby.jobleaf.domain.exceptions.user.EmployerAccessException;
+import com.seby.jobleaf.domain.exceptions.user.JobSeekerAccessException;
 import com.seby.jobleaf.domain.exceptions.user.UserRoleConflictException;
 
 import java.time.Instant;
@@ -27,6 +28,17 @@ public record JobLeafUser(
 
     public boolean isAdmin() {
         return role == RoleName.ROLE_ADMIN;
+    }
+
+    /**
+     * Rule for profiles: only job seekers have one.
+     *
+     * @throws JobSeekerAccessException for every other role
+     */
+    public void checkIsJobSeeker() {
+        if (role != RoleName.ROLE_JOB_SEEKER) {
+            throw new JobSeekerAccessException(id);
+        }
     }
 
     /**

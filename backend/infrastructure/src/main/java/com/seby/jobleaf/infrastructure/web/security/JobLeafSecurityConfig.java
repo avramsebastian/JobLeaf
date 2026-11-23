@@ -70,6 +70,7 @@ public class JobLeafSecurityConfig {
                                                   @Qualifier("publicPaths") List<String> publicPaths,
                                                   @Qualifier("adminPaths") List<String> adminPaths,
                                                   @Qualifier("employerPaths") List<String> employerPaths,
+                                                  @Qualifier("jobSeekerPaths") List<String> jobSeekerPaths,
                                                   @Qualifier("securedPaths") List<String> securedPaths,
                                                   @Qualifier("infrastructurePaths") List<String> infrastructurePaths,
                                                   ProblemDetailSecurityHandler problemDetailSecurityHandler,
@@ -94,6 +95,7 @@ public class JobLeafSecurityConfig {
                     publicPaths.forEach(path -> requests.requestMatchers(path).permitAll());
                     adminPaths.forEach(path -> requests.requestMatchers(path).hasRole("ADMIN"));
                     employerPaths.forEach(path -> requests.requestMatchers(path).hasRole("EMPLOYER"));
+                    jobSeekerPaths.forEach(path -> requests.requestMatchers(path).hasRole("JOB_SEEKER"));
                     securedPaths.forEach(path -> requests.requestMatchers(path).authenticated());
                     requests.anyRequest().denyAll();
                 })

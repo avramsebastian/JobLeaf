@@ -8,7 +8,8 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user, logout, isAuthenticated, isEmployer, isJobSeeker, isAdmin } = useAuth();
+  // profilePictureUrl: the job seeker's picture (null for other roles or without picture → the initial is shown)
+  const { user, profilePictureUrl, logout, isAuthenticated, isEmployer, isJobSeeker, isAdmin } = useAuth();
   const { totalAppliedJobs, totalSavedJobs, totalPostedJobs } = useJobs();
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,11 +120,19 @@ const Navbar = () => {
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center space-x-3 px-4 py-2 bg-gradient-to-r from-primary-50 to-purple-50 dark:from-primary-900/20 dark:to-purple-900/20 rounded-xl hover:from-primary-100 hover:to-purple-100 dark:hover:from-primary-800/30 dark:hover:to-purple-800/30 transition-all duration-300"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">
-                        {user.name?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    {profilePictureUrl ? (
+                      <img
+                        src={profilePictureUrl}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {user.name?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div className="text-left">
                       <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {user.name}
@@ -448,11 +457,19 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <div className="px-3 py-2">
                   <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-primary-50 to-purple-50 dark:from-primary-900/20 dark:to-purple-900/20 rounded-lg">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold">
-                        {user.name?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    {profilePictureUrl ? (
+                      <img
+                        src={profilePictureUrl}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold">
+                          {user.name?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {user.name}

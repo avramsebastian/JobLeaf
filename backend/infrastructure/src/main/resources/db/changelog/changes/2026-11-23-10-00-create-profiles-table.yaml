@@ -1,0 +1,160 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-23-10-00-create-profiles-table
+      author: Seby
+      comment: >-
+        Creates the job seeker profiles (one per user). Files are stored as BYTEA (PostgreSQL's binary type, the
+        equivalent of MySQL's MEDIUMBLOB). Picture and resume are optional: the profile is filled in two steps,
+        first the details, then the files.
+      changes:
+        - createTable:
+            tableName: profiles
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_profiles_user_id
+                    foreignKeyName: fk_profiles_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: job_title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: location
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: experience_level
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: professional_bio
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: portfolio_website
+                  type: VARCHAR(500)
+              - column:
+                  name: profile_picture
+                  type: BYTEA
+              - column:
+                  name: profile_picture_name
+                  type: VARCHAR(255)
+              - column:
+                  name: profile_picture_type
+                  type: VARCHAR(100)
+              - column:
+                  name: resume
+                  type: BYTEA
+              - column:
+                  name: resume_name
+                  type: VARCHAR(255)
+              - column:
+                  name: resume_type
+                  type: VARCHAR(100)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - createTable:
+            tableName: profiles_aud
+            remarks: "Audit history of profiles. The file bytes are not audited (@NotAudited), only names and types."
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rev
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revtype
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+              - column:
+                  name: job_title
+                  type: VARCHAR(255)
+              - column:
+                  name: location
+                  type: VARCHAR(255)
+              - column:
+                  name: experience_level
+                  type: VARCHAR(50)
+              - column:
+                  name: professional_bio
+                  type: TEXT
+              - column:
+                  name: portfolio_website
+                  type: VARCHAR(500)
+              - column:
+                  name: profile_picture_name
+                  type: VARCHAR(255)
+              - column:
+                  name: profile_picture_type
+                  type: VARCHAR(100)
+              - column:
+                  name: resume_name
+                  type: VARCHAR(255)
+              - column:
+                  name: resume_type
+                  type: VARCHAR(100)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_by
+                  type: UUID
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_by
+                  type: UUID
+        - addPrimaryKey:
+            tableName: profiles_aud
+            columnNames: id, rev
+            constraintName: pk_profiles_aud
+        - addForeignKeyConstraint:
+            baseTableName: profiles_aud
+            baseColumnNames: rev
+            referencedTableName: revinfo
+            referencedColumnNames: rev
+            constraintName: fk_profiles_aud_revinfo
+      rollback:
+        - dropTable:
+            tableName: profiles_aud
+        - dropTable:
+            tableName: profiles
