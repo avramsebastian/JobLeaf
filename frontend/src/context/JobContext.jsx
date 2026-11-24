@@ -57,13 +57,9 @@ export const JobProvider = ({ children }) => {
         // Load saved jobs from backend
         const loadSavedJobs = async () => {
           try {
+            // The backend returns plain job objects (newest posted first)
             const savedJobsData = await savedJobService.getSavedJobs();
-            // Transform backend data to match frontend format
-            const transformedJobs = savedJobsData.map(savedJob => ({
-              ...savedJob.job,
-              savedAt: savedJob.savedAt
-            }));
-            setSavedJobs(transformedJobs);
+            setSavedJobs(Array.isArray(savedJobsData) ? savedJobsData : []);
           } catch (error) {
             console.error('Error loading saved jobs from backend:', error);
             // Fallback to localStorage if backend fails
@@ -179,20 +175,14 @@ export const JobProvider = ({ children }) => {
     }
 
     try {
-      // Call backend API
-      await savedJobService.saveJob(job.id);
-
-      // Update local state
-      const savedJobData = {
-        ...job,
-        savedAt: new Date().toISOString()
-      };
-
-      setSavedJobs(prev => [...prev, savedJobData]);
+      // The backend answers with the saved job as it is stored
+      const savedJob = await savedJobService.saveJob(job.id);
+      setSavedJobs(prev => [savedJob, ...prev.filter(saved => saved.id !== savedJob.id)]);
       return { success: true, message: 'Job saved successfully!' };
     } catch (error) {
       console.error('Error saving job:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to save job' };
+      // e.g. 404 "Job with id ... not found" when the job was closed in the meantime
+      return { success: false, error: error.response?.data?.detail || 'Failed to save job' };
     }
   };
 
@@ -210,7 +200,7 @@ export const JobProvider = ({ children }) => {
       return { success: true, message: 'Job removed from saved jobs' };
     } catch (error) {
       console.error('Error unsaving job:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to unsave job' };
+      return { success: false, error: error.response?.data?.detail || 'Failed to unsave job' };
     }
   };
 

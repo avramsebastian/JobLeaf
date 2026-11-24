@@ -71,11 +71,10 @@ export const API_ENDPOINTS = {
   UPDATE_JOB_STATUS: (jobId) => `/jobs/${jobId}/status/employer`,
 
   // Saved Jobs endpoints
-  SAVED_JOBS: "/saved-jobs",
-  SAVED_JOB_IDS: "/saved-jobs/ids",
-  SAVE_JOB: (jobId) => `/saved-jobs/${jobId}`,
-  UNSAVE_JOB: (jobId) => `/saved-jobs/${jobId}`,
-  CHECK_JOB_SAVED: (jobId) => `/saved-jobs/check/${jobId}`,
+  // Job seeker only (ROLE_JOB_SEEKER): list (GET), save (POST) and unsave (DELETE) jobs of the logged-in user
+  SAVED_JOBS: "/saved-jobs/jobseeker",
+  SAVE_JOB: (jobId) => `/saved-jobs/${jobId}/jobseeker`,
+  UNSAVE_JOB: (jobId) => `/saved-jobs/${jobId}/jobseeker`,
 
   // Job Application endpoints
   JOB_APPLICATIONS: "/job-applications",

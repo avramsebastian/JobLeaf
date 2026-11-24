@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-24-10-00-create-saved-jobs-table
+      author: Seby
+      comment: >-
+        Join table for the jobs a job seeker saved (many users can save many jobs). The primary key on both columns
+        means a job can be saved only once per user. Deleting a user or a job deletes their saved entries.
+      changes:
+        - createTable:
+            tableName: saved_jobs
+            columns:
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_saved_jobs_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: job_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_saved_jobs_job
+                    references: jobs(id)
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: saved_jobs
+            columnNames: user_id, job_id
+            constraintName: pk_saved_jobs
+        - createIndex:
+            tableName: saved_jobs
+            indexName: idx_saved_jobs_job_id
+            columns:
+              - column:
+                  name: job_id
+      rollback:
+        - dropTable:
+            tableName: saved_jobs

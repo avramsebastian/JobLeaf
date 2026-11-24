@@ -6,16 +6,20 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * JPA entity for the {@code jobs} table.
@@ -93,4 +97,12 @@ public class JobEntity extends BaseEntity {
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
+
+    /**
+     * The job seekers who saved this job: the other side of {@link JobLeafUserEntity#getSavedJobs()}. mappedBy means
+     * this side only reads the join table, it never writes it.
+     */
+    @NotAudited
+    @ManyToMany(mappedBy = "savedJobs")
+    private Set<JobLeafUserEntity> savedByUsers = new LinkedHashSet<>();
 }

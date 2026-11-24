@@ -25,6 +25,8 @@ tags:
     description: Job management endpoints for employers.
   - name: Profile
     description: Job seeker profile with picture and resume.
+  - name: SavedJob
+    description: Jobs saved by a job seeker.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -566,6 +568,85 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /saved-jobs/jobseeker:
+    get:
+      tags: [ SavedJob ]
+      operationId: listSavedJobs
+      summary: List the jobs the job seeker saved.
+      description: >-
+        Returns the saved jobs of the logged-in job seeker, newest posted first. A saved job that was closed later is
+        still listed, with its status. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Saved jobs retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /saved-jobs/{jobId}/jobseeker:
+    post:
+      tags: [ SavedJob ]
+      operationId: saveJob
+      summary: Save a job.
+      description: >-
+        Saves an ACTIVE job for the logged-in job seeker. Saving it again changes nothing. Jobs that do not exist or
+        are not published (drafts) answer 404. Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The saved job.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    delete:
+      tags: [ SavedJob ]
+      operationId: unsaveJob
+      summary: Remove a job from the saved jobs.
+      description: Removes the job from the logged-in job seeker's saved jobs. Removing a job that was not saved changes nothing. Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The job is no longer saved.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UnsaveJobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
@@ -1496,6 +1577,15 @@ components:
           $ref: '#/components/schemas/DateTime'
         updatedAt:
           $ref: '#/components/schemas/DateTime'
+
+    UnsaveJobResponse:
+      type: object
+      additionalProperties: false
+      required: [ message ]
+      properties:
+        message:
+          type: string
+          example: "Job removed from saved jobs"
 
     ContactStatus:
       type: string

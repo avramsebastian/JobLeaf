@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -11,6 +13,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * JPA entity for the {@code users} table: JobLeaf's own user, instead of Spring Security's {@code User}.
@@ -46,4 +51,16 @@ public class JobLeafUserEntity extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private CompanyEntity company;
+
+    /**
+     * Jobs this job seeker saved. This side owns the {@code saved_jobs} join table: adding or removing a job here is
+     * what inserts or deletes the row. Lazy (the default for collections), so loading a user never loads them.
+     * Not audited: Envers would otherwise need a {@code saved_jobs_aud} table for the join rows.
+     */
+    @NotAudited
+    @ManyToMany
+    @JoinTable(name = "saved_jobs",
+            joinColumns = {@JoinColumn(name = "user_id")},
+            inverseJoinColumns = {@JoinColumn(name = "job_id")})
+    private Set<JobEntity> savedJobs = new LinkedHashSet<>();
 }

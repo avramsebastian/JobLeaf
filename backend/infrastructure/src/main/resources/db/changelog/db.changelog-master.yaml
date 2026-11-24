@@ -23,3 +23,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-11-15-10-00-add-status-to-contacts.yaml
   - include:
       file: db/changelog/changes/2026-11-23-10-00-create-profiles-table.yaml
+  - include:
+      file: db/changelog/changes/2026-11-24-10-00-create-saved-jobs-table.yaml

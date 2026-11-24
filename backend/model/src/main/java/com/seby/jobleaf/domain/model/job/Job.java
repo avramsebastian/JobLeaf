@@ -56,6 +56,13 @@ public record Job(
     }
 
     /**
+     * @return true if job seekers can see the job (published); drafts and closed jobs are not visible to them
+     */
+    public boolean isVisibleToJobSeekers() {
+        return currentStatus() == JobStatus.ACTIVE;
+    }
+
+    /**
      * @return true if this job is owned by the given company
      */
     public boolean belongsTo(UUID otherCompanyId) {

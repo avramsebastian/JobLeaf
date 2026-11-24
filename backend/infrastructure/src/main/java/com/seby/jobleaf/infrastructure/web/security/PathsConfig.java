@@ -54,7 +54,9 @@ public class PathsConfig {
         return List.of(
                 "/jobleaf/profile/jobseeker",
                 "/jobleaf/profile/picture/jobseeker",
-                "/jobleaf/profile/resume/jobseeker"
+                "/jobleaf/profile/resume/jobseeker",
+                "/jobleaf/saved-jobs/{jobId}/jobseeker",
+                "/jobleaf/saved-jobs/jobseeker"
         );
     }
 

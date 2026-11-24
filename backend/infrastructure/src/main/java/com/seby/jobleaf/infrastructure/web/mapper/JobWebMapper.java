@@ -2,6 +2,7 @@ package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.CreateJobRequest;
 import com.seby.jobleaf.apis.generated.model.JobResponse;
+import com.seby.jobleaf.apis.generated.model.UnsaveJobResponse;
 import com.seby.jobleaf.apis.generated.model.UpdateJobStatusRequest;
 import com.seby.jobleaf.domain.model.job.Job;
 import com.seby.jobleaf.domain.model.job.JobDetails;
@@ -20,6 +21,8 @@ import static java.util.Optional.ofNullable;
  */
 @Component
 public class JobWebMapper {
+
+    static final String UNSAVE_SUCCESS_MESSAGE = "Job removed from saved jobs";
 
     public JobResponse toJobResponse(Job job) {
         var response = new JobResponse();
@@ -81,6 +84,12 @@ public class JobWebMapper {
                 Boolean.TRUE.equals(request.getUrgent()),
                 Boolean.TRUE.equals(request.getRemote())
         );
+    }
+
+    public UnsaveJobResponse toUnsaveJobResponse() {
+        var response = new UnsaveJobResponse();
+        response.setMessage(UNSAVE_SUCCESS_MESSAGE);
+        return response;
     }
 
     public JobStatus toJobStatus(UpdateJobStatusRequest request) {
