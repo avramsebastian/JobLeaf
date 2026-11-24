@@ -25,3 +25,7 @@ databaseChangeLog:
       file: db/changelog/changes/2026-11-23-10-00-create-profiles-table.yaml
   - include:
       file: db/changelog/changes/2026-11-24-10-00-create-saved-jobs-table.yaml
+  - include:
+      file: db/changelog/changes/2026-11-24-12-00-create-job-applications-table.yaml
+  - include:
+      file: db/changelog/changes/2026-11-24-14-00-shift-mock-job-dates.yaml

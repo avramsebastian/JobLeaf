@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -105,4 +106,12 @@ public class JobEntity extends BaseEntity {
     @NotAudited
     @ManyToMany(mappedBy = "savedJobs")
     private Set<JobLeafUserEntity> savedByUsers = new LinkedHashSet<>();
+
+    /**
+     * Applications to this job. The inverse side (mappedBy): the foreign key lives in
+     * {@link JobApplicationEntity#getJob()}, this set only reads it. Lazy.
+     */
+    @NotAudited
+    @OneToMany(mappedBy = "job")
+    private Set<JobApplicationEntity> jobApplications = new LinkedHashSet<>();
 }

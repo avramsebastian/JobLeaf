@@ -63,6 +63,13 @@ public record Job(
     }
 
     /**
+     * @return true while the application deadline has not passed (a job without deadline is always open)
+     */
+    public boolean isDeadlineOpen(Instant now) {
+        return applicationDeadline == null || applicationDeadline.isAfter(now);
+    }
+
+    /**
      * @return true if this job is owned by the given company
      */
     public boolean belongsTo(UUID otherCompanyId) {

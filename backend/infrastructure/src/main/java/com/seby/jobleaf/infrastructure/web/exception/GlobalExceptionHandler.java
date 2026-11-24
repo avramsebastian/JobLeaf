@@ -4,6 +4,8 @@ import com.seby.jobleaf.domain.exceptions.auth.InvalidCredentialsException;
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.job.InvalidJobStatusChangeException;
+import com.seby.jobleaf.domain.exceptions.jobapplication.JobApplicationConflictException;
+import com.seby.jobleaf.domain.exceptions.profile.ProfileIncompleteException;
 import com.seby.jobleaf.domain.exceptions.user.EmployerAccessException;
 import com.seby.jobleaf.domain.exceptions.user.JobSeekerAccessException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -100,6 +102,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /**
      * Only job seekers have a profile (checked against the stored user, the token can be outdated).
      */
+    @ExceptionHandler(JobApplicationConflictException.class)
+    public ResponseEntity<ProblemDetail> handleJobApplicationConflict(JobApplicationConflictException exception,
+                                                                      WebRequest request) {
+        log.debug("Job application conflict: {}", exception.getMessage());
+        return problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    /**
+     * 409 with {@code errors.profile}, so the frontend can send the job seeker to the profile page.
+     */
+    @ExceptionHandler(ProfileIncompleteException.class)
+    public ResponseEntity<ProblemDetail> handleProfileIncomplete(ProfileIncompleteException exception,
+                                                                 WebRequest request) {
+        ResponseEntity<ProblemDetail> response = problem(HttpStatus.CONFLICT, exception.getMessage(), request);
+        response.getBody().setProperty(ERRORS_PROPERTY, Map.of(exception.getField(), exception.getMessage()));
+        return response;
+    }
+
     @ExceptionHandler(JobSeekerAccessException.class)
     public ResponseEntity<ProblemDetail> handleJobSeekerAccess(JobSeekerAccessException exception,
                                                                WebRequest request) {

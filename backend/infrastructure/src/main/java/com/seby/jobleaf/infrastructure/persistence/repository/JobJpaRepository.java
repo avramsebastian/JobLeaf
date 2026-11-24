@@ -2,6 +2,7 @@ package com.seby.jobleaf.infrastructure.persistence.repository;
 
 import com.seby.jobleaf.infrastructure.persistence.entity.JobEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,4 +32,17 @@ public interface JobJpaRepository extends JpaRepository<JobEntity, UUID> {
             from JobLeafUserEntity u join u.savedJobs j
             where u.id = :userId and j.id = :jobId""")
     boolean isSavedByUser(@Param("userId") UUID userId, @Param("jobId") UUID jobId);
+
+    /**
+     * One UPDATE statement in the database, so two job seekers applying at the same moment can not overwrite each
+     * other's +1 (read, add, write in Java could). Never goes below 0. As a bulk update it does not go through the
+     * entity, so it creates no audit revision of the job.
+     */
+    @Modifying
+    @Query("""
+            update JobEntity j set j.applicationsCount =
+                case when coalesce(j.applicationsCount, 0) + :delta < 0 then 0
+                     else coalesce(j.applicationsCount, 0) + :delta end
+            where j.id = :jobId""")
+    int changeApplicationsCount(@Param("jobId") UUID jobId, @Param("delta") int delta);
 }

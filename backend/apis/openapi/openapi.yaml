@@ -27,6 +27,8 @@ tags:
     description: Job seeker profile with picture and resume.
   - name: SavedJob
     description: Jobs saved by a job seeker.
+  - name: JobApplication
+    description: Job applications of a job seeker.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -648,6 +650,92 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /job-applications/jobseeker:
+    get:
+      tags: [ JobApplication ]
+      operationId: listMyApplications
+      summary: List the job seeker's applications.
+      description: >-
+        All applications of the logged-in job seeker with their job, newest first. Withdrawn applications are included
+        with status WITHDRAWN. The employer's internal notes are never returned. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobApplicationResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ JobApplication ]
+      operationId: applyForJob
+      summary: Apply for a job.
+      description: >-
+        Applies the logged-in job seeker to an ACTIVE job whose deadline has not passed. Requires a profile with a
+        resume (409 with errors.profile otherwise). Applying twice answers 409; after a withdrawal the same application
+        is reopened. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/ApplyJobRequest'
+      responses:
+        '201':
+          description: Application submitted.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /job-applications/{jobId}/jobseeker:
+    delete:
+      tags: [ JobApplication ]
+      operationId: withdrawApplication
+      summary: Withdraw the application for a job.
+      description: >-
+        Sets the logged-in job seeker's application for this job to WITHDRAWN (the history is kept). Withdrawing again
+        changes nothing; a rejected application can not be withdrawn (409). Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The withdrawn application.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -1586,6 +1674,40 @@ components:
         message:
           type: string
           example: "Job removed from saved jobs"
+
+    ApplicationStatus:
+      type: string
+      enum: [ PENDING, REVIEWED, SHORTLISTED, INTERVIEWED, OFFERED, REJECTED, WITHDRAWN ]
+
+    ApplyJobRequest:
+      type: object
+      additionalProperties: false
+      required: [ jobId ]
+      properties:
+        jobId:
+          $ref: '#/components/schemas/Uuid'
+        coverLetter:
+          type: string
+          maxLength: 5000
+          description: Optional cover letter.
+
+    JobApplicationResponse:
+      type: object
+      additionalProperties: false
+      required: [ id, job, appliedAt, status ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        job:
+          $ref: '#/components/schemas/JobResponse'
+        appliedAt:
+          $ref: '#/components/schemas/DateTime'
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        coverLetter:
+          type: string
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
 
     ContactStatus:
       type: string

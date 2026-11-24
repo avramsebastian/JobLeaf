@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useJobs } from '../context/JobContext';
 import { useAuth } from '../context/AuthContext';
 import { useCompanies } from '../contexts/CompaniesContext';
+import { isDeadlinePassed, formatDeadline } from '../utils/jobDeadline';
 
 const SavedJobs = () => {
   const { savedJobs, unsaveJob, applyForJob, isJobApplied } = useJobs();
@@ -30,8 +31,8 @@ const SavedJobs = () => {
     await unsaveJob(jobId);
   };
 
-  const handleQuickApply = (job) => {
-    const result = applyForJob(job);
+  const handleQuickApply = async (job) => {
+    const result = await applyForJob(job);
     if (result.success) {
       // Could add a toast notification here
       console.log('Application submitted successfully!');
@@ -203,6 +204,11 @@ const SavedJobs = () => {
                           {job.status !== 'ACTIVE' && (
                             <span className="ml-2 font-semibold text-red-600 dark:text-red-400">• No longer open</span>
                           )}
+                          {job.status === 'ACTIVE' && formatDeadline(job) && (
+                            <span className={`ml-2 ${isDeadlinePassed(job) ? 'font-semibold text-red-600 dark:text-red-400' : ''}`}>
+                              • {isDeadlinePassed(job) ? 'Applications closed' : `Apply by ${formatDeadline(job)}`}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -214,14 +220,18 @@ const SavedJobs = () => {
                     <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
                       <button
                         onClick={() => handleQuickApply(job)}
-                        disabled={isJobApplied(job.id)}
+                        disabled={isJobApplied(job.id) || job.status !== 'ACTIVE' || isDeadlinePassed(job)}
                         className={`px-6 py-2 rounded-xl font-semibold transition-colors ${
-                          isJobApplied(job.id)
+                          isJobApplied(job.id) || job.status !== 'ACTIVE' || isDeadlinePassed(job)
                             ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
                             : 'bg-gradient-to-r from-primary-600 to-purple-600 text-white hover:from-primary-700 hover:to-purple-700'
                         }`}
                       >
-                        {isJobApplied(job.id) ? '✓ Applied' : 'Quick Apply'}
+                        {isJobApplied(job.id)
+                          ? '✓ Applied'
+                          : job.status !== 'ACTIVE' || isDeadlinePassed(job)
+                          ? 'Applications Closed'
+                          : 'Quick Apply'}
                       </button>
                       <Link
                         to={`/jobs/${job.id}`}

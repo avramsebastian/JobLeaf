@@ -56,7 +56,9 @@ public class PathsConfig {
                 "/jobleaf/profile/picture/jobseeker",
                 "/jobleaf/profile/resume/jobseeker",
                 "/jobleaf/saved-jobs/{jobId}/jobseeker",
-                "/jobleaf/saved-jobs/jobseeker"
+                "/jobleaf/saved-jobs/jobseeker",
+                "/jobleaf/job-applications/jobseeker",
+                "/jobleaf/job-applications/{jobId}/jobseeker"
         );
     }
 

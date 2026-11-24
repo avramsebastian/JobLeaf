@@ -7,6 +7,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -63,4 +64,12 @@ public class JobLeafUserEntity extends BaseEntity {
             joinColumns = {@JoinColumn(name = "user_id")},
             inverseJoinColumns = {@JoinColumn(name = "job_id")})
     private Set<JobEntity> savedJobs = new LinkedHashSet<>();
+
+    /**
+     * Applications of this job seeker. The inverse side (mappedBy): the foreign key lives in
+     * {@link JobApplicationEntity#getUser()}, this set only reads it. Lazy, so loading a user never loads them.
+     */
+    @NotAudited
+    @OneToMany(mappedBy = "user")
+    private Set<JobApplicationEntity> jobApplications = new LinkedHashSet<>();
 }

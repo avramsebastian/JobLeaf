@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-24-14-00-shift-mock-job-dates
+      author: Seby
+      comment: >-
+        The mock jobs were posted in 2025, so all their application deadlines had passed and nobody could apply.
+        This moves the posted date and the deadline of every mock job (created by the system user) forward by the
+        same amount, so the newest mock job is posted today and the deadlines reach about two months ahead.
+        Jobs created by real employers are not touched. Runs once, like every changeSet.
+      changes:
+        - sql:
+            sql: >-
+              UPDATE jobs
+              SET posted_date = posted_date + s.offset_by,
+                  application_deadline = application_deadline + s.offset_by
+              FROM (SELECT now() - max(posted_date) AS offset_by
+                    FROM jobs
+                    WHERE created_by = '00000000-0000-0000-0000-000000000001') s
+              WHERE created_by = '00000000-0000-0000-0000-000000000001'
+      rollback:
+        - sql:
+            sql: SELECT 1

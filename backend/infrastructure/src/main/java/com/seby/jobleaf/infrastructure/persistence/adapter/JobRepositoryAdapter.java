@@ -74,4 +74,14 @@ public class JobRepositoryAdapter implements JobRepositoryPort {
         log.debug("Changed status of job {} to {}", saved.getId(), saved.getStatus());
         return mapper.toDomain(saved);
     }
+
+    /**
+     * The count is shown in the cached public company list, so that cache is cleared too.
+     */
+    @Override
+    @CacheEvict(cacheNames = CacheConfig.PUBLIC_COMPANIES, allEntries = true)
+    public void changeApplicationsCount(UUID jobId, int delta) {
+        jobJpaRepository.changeApplicationsCount(jobId, delta);
+        log.debug("Changed applications count of job {} by {}", jobId, delta);
+    }
 }

@@ -31,8 +31,11 @@ export const JobProvider = ({ children }) => {
         const loadAppliedJobs = async () => {
           try {
             const applicationsData = await jobApplicationService.getMyApplications();
-            // Transform backend data to match frontend format
-            const transformedApplications = applicationsData.map(app => ({
+            // Withdrawn applications stay in the backend (history) but do not count as applied here,
+            // so the job can be applied for again
+            const transformedApplications = applicationsData
+              .filter(app => app.status !== 'WITHDRAWN')
+              .map(app => ({
               ...app.job,
               appliedAt: app.appliedAt,
               status: app.status,
@@ -129,11 +132,6 @@ export const JobProvider = ({ children }) => {
       return { success: false, error: 'Only job seekers can apply for jobs' };
     }
 
-    // Check if profile is complete
-    if (!user.profileComplete) {
-      return { success: false, error: 'Please complete your profile before applying for jobs', requiresProfile: true };
-    }
-
     const isAlreadyApplied = appliedJobs.some(appliedJob => appliedJob.id === job.id);
     if (isAlreadyApplied) {
       return { success: false, error: 'You have already applied for this job' };
@@ -143,9 +141,9 @@ export const JobProvider = ({ children }) => {
       // Call backend API
       const application = await jobApplicationService.applyForJob(job.id, coverLetter);
 
-      // Update local state
+      // Update local state with the job as the backend returned it
       const applicationData = {
-        ...job,
+        ...application.job,
         appliedAt: application.appliedAt,
         status: application.status,
         applicationId: application.id,
@@ -160,7 +158,13 @@ export const JobProvider = ({ children }) => {
       return { success: true, message: 'Application submitted successfully!' };
     } catch (error) {
       console.error('Error applying for job:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to apply for job' };
+      // The backend decides whether the profile is complete (a resume is needed): 409 with errors.profile
+      const data = error.response?.data;
+      return {
+        success: false,
+        error: data?.detail || 'Failed to apply for job',
+        requiresProfile: Boolean(data?.errors?.profile)
+      };
     }
   };
 
@@ -235,7 +239,7 @@ export const JobProvider = ({ children }) => {
       return { success: true, message: 'Application withdrawn successfully!' };
     } catch (error) {
       console.error('Error withdrawing application:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to withdraw application' };
+      return { success: false, error: error.response?.data?.detail || 'Failed to withdraw application' };
     }
   };
 

@@ -10,7 +10,8 @@ export const applyForJob = async (jobId, coverLetter = '') => {
   try {
     const response = await httpClient.post(API_ENDPOINTS.APPLY_JOB, {
       jobId,
-      coverLetter
+      // The backend treats an empty cover letter as none
+      coverLetter: coverLetter || null
     });
     return response.data;
   } catch (error) {
@@ -48,29 +49,11 @@ export const getMyApplications = async () => {
 /**
  * Get all applied job IDs for the current user (lightweight)
  */
-export const getAppliedJobIds = async () => {
-  try {
-    const response = await httpClient.get(API_ENDPOINTS.APPLIED_JOB_IDS);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching applied job IDs:', error);
-    throw error;
-  }
-};
 
 /**
  * Check if user has applied for a job
  * @param {number} jobId - The job ID
  */
-export const hasApplied = async (jobId) => {
-  try {
-    const response = await httpClient.get(API_ENDPOINTS.CHECK_APPLIED(jobId));
-    return response.data;
-  } catch (error) {
-    console.error('Error checking if applied:', error);
-    return false;
-  }
-};
 
 /**
  * Get all applications for a specific job (Employer)

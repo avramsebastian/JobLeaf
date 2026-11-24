@@ -78,11 +78,11 @@ export const API_ENDPOINTS = {
 
   // Job Application endpoints
   JOB_APPLICATIONS: "/job-applications",
-  APPLY_JOB: "/job-applications",
-  WITHDRAW_APPLICATION: (jobId) => `/job-applications/${jobId}`,
-  MY_APPLICATIONS: "/job-applications/my-applications",
-  APPLIED_JOB_IDS: "/job-applications/applied-job-ids",
-  CHECK_APPLIED: (jobId) => `/job-applications/check/${jobId}`,
+  // Job seeker only (ROLE_JOB_SEEKER): apply (POST {jobId, coverLetter}), own applications (GET),
+  // withdraw (DELETE, keeps the application with status WITHDRAWN)
+  APPLY_JOB: "/job-applications/jobseeker",
+  MY_APPLICATIONS: "/job-applications/jobseeker",
+  WITHDRAW_APPLICATION: (jobId) => `/job-applications/${jobId}/jobseeker`,
   APPLICATIONS_BY_JOB: (jobId) => `/job-applications/job/${jobId}`,
   COMPANY_APPLICATIONS: "/job-applications/company-applications",
   UPDATE_APPLICATION_STATUS: (applicationId) => `/job-applications/${applicationId}/status`,
