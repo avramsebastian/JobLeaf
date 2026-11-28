@@ -83,9 +83,13 @@ export const API_ENDPOINTS = {
   APPLY_JOB: "/job-applications/jobseeker",
   MY_APPLICATIONS: "/job-applications/jobseeker",
   WITHDRAW_APPLICATION: (jobId) => `/job-applications/${jobId}/jobseeker`,
-  APPLICATIONS_BY_JOB: (jobId) => `/job-applications/job/${jobId}`,
-  COMPANY_APPLICATIONS: "/job-applications/company-applications",
-  UPDATE_APPLICATION_STATUS: (applicationId) => `/job-applications/${applicationId}/status`,
+  // Employer only (ROLE_EMPLOYER): applications received for a job of the own company (GET),
+  // change status and internal notes of one (PATCH {status, notes?})
+  APPLICATIONS_BY_JOB: (jobId) => `/jobs/${jobId}/applications/employer`,
+  UPDATE_JOB_APPLICATION: (applicationId) => `/jobs/applications/${applicationId}/employer`,
+  // Employer only: the applicant's files, read one at a time (GET, binary)
+  APPLICANT_PICTURE: (applicationId) => `/jobs/applications/${applicationId}/picture/employer`,
+  APPLICANT_RESUME: (applicationId) => `/jobs/applications/${applicationId}/resume/employer`,
 };
 
 // HTTP Headers

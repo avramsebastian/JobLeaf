@@ -28,7 +28,7 @@ const Jobs = () => {
   const [selectedJob, setSelectedJob] = useState(null)
   const [coverLetter, setCoverLetter] = useState('')
   
-  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getAllJobsSync } = useJobs()
+  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getAllJobsSync, getApplicationStatus } = useJobs()
   const { jobs: apiJobs, loading: jobsLoading, error: jobsError } = useJobsData()
   const { isAuthenticated, isJobSeeker, isEmployer, user } = useAuth()
 
@@ -473,7 +473,16 @@ const Jobs = () => {
                   <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
                     {!isEmployer && (
                       <>
-                        {isJobApplied(job.id) ? (
+                        {getApplicationStatus(job.id) === 'REJECTED' ? (
+                          // The employer decided: nothing left to withdraw (the backend refuses it too)
+                          <button
+                            disabled
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                            className="px-4 py-2 rounded-xl font-semibold text-sm bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed"
+                          >
+                            Not Selected
+                          </button>
+                        ) : isJobApplied(job.id) ? (
                           <button
                             onClick={(e) => {
                               e.preventDefault()

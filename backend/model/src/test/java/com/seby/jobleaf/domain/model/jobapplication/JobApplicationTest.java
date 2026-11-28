@@ -62,6 +62,32 @@ class JobApplicationTest {
     }
 
     @Test
+    @DisplayName("Should let the employer set a status; null notes keep the old ones, blank notes remove them")
+    void review() {
+        var reviewed = application(ApplicationStatus.PENDING).review(ApplicationStatus.INTERVIEWED, null);
+        assertThat(reviewed.status()).isEqualTo(ApplicationStatus.INTERVIEWED);
+        assertThat(reviewed.notes()).isEqualTo("internal note");
+
+        assertThat(reviewed.review(ApplicationStatus.OFFERED, "  Great fit  ").notes()).isEqualTo("Great fit");
+        assertThat(reviewed.review(ApplicationStatus.OFFERED, "   ").notes()).isNull();
+    }
+
+    @Test
+    @DisplayName("Should refuse PENDING / WITHDRAWN from the employer, too long notes, and withdrawn applications")
+    void reviewRefused() {
+        var pending = application(ApplicationStatus.PENDING);
+        assertThatThrownBy(() -> pending.review(ApplicationStatus.PENDING, null))
+                .isInstanceOf(DomainValidationException.class);
+        assertThatThrownBy(() -> pending.review(ApplicationStatus.WITHDRAWN, null))
+                .isInstanceOf(DomainValidationException.class);
+        assertThatThrownBy(() -> pending.review(ApplicationStatus.REVIEWED, "a".repeat(5001)))
+                .isInstanceOf(DomainValidationException.class)
+                .hasMessage("notes must be at most 5000 characters");
+        assertThatThrownBy(() -> application(ApplicationStatus.WITHDRAWN).review(ApplicationStatus.REVIEWED, null))
+                .isInstanceOf(JobApplicationConflictException.class);
+    }
+
+    @Test
     @DisplayName("Should reopen a withdrawn application as PENDING with a new date and cover letter, keeping the id")
     void reapply() {
         var withdrawn = application(ApplicationStatus.WITHDRAWN);

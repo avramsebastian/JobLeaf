@@ -17,7 +17,7 @@ const JobDetail = () => {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [coverLetter, setCoverLetter] = useState('')
   
-  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getJobByIdSync } = useJobs()
+  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getJobByIdSync, getApplicationStatus } = useJobs()
   const { jobs: apiJobs, getJobById } = useJobsData()
   const { user, isAuthenticated, isJobSeeker, isEmployer } = useAuth()
 
@@ -269,7 +269,15 @@ const JobDetail = () => {
                 <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
                   {!isEmployer && (
                     <>
-                      {job && isJobApplied(job.id) ? (
+                      {job && getApplicationStatus(job.id) === 'REJECTED' ? (
+                        // The employer decided: nothing left to withdraw (the backend refuses it too)
+                        <button
+                          disabled
+                          className="px-8 py-4 rounded-xl font-bold text-lg bg-gray-400 text-gray-700 cursor-not-allowed shadow-lg shadow-gray-500/25"
+                        >
+                          Not Selected
+                        </button>
+                      ) : job && isJobApplied(job.id) ? (
                         <button
                           onClick={handleWithdraw}
                           className="px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/25"

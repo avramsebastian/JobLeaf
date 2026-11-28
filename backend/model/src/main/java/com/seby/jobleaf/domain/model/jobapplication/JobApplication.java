@@ -28,7 +28,10 @@ public record JobApplication(
         UUID updatedBy
 ) {
 
-    public static final int MAX_COVER_LETTER_LENGTH = 5000;
+    /**
+     * Longest cover letter and longest notes.
+     */
+    public static final int MAX_TEXT_LENGTH = 5000;
 
     /**
      * A new application in status PENDING.
@@ -65,13 +68,41 @@ public record JobApplication(
     }
 
     /**
+     * The employer moves the application forward (or rejects it) and keeps internal notes.
+     *
+     * @param newStatus one of {@link ApplicationStatus#isSetByEmployer() the employer's statuses}
+     * @param newNotes  null keeps the stored notes, blank text removes them
+     * @throws DomainValidationException       for PENDING / WITHDRAWN, or notes over 5000 characters
+     * @throws JobApplicationConflictException if the job seeker withdrew it
+     */
+    public JobApplication review(ApplicationStatus newStatus, String newNotes) {
+        if (newStatus == null || !newStatus.isSetByEmployer()) {
+            throw DomainValidationException.invalidField("status",
+                    "status must be one of REVIEWED, SHORTLISTED, INTERVIEWED, OFFERED, REJECTED");
+        }
+        if (isWithdrawn()) {
+            throw JobApplicationConflictException.withdrawn(id);
+        }
+        String notesToKeep = newNotes == null ? notes : checkedLength(newNotes, "notes");
+        return new JobApplication(id, userId, job, appliedAt, newStatus, coverLetter, notesToKeep,
+                createdAt, createdBy, updatedAt, updatedBy);
+    }
+
+    /**
      * @return the trimmed cover letter, or null when empty
      */
     private static String checkedCoverLetter(String coverLetter) {
-        String normalized = normalizeNullableText(coverLetter);
-        if (normalized != null && normalized.length() > MAX_COVER_LETTER_LENGTH) {
-            throw DomainValidationException.invalidField("coverLetter",
-                    "coverLetter must be at most " + MAX_COVER_LETTER_LENGTH + " characters");
+        return checkedLength(coverLetter, "coverLetter");
+    }
+
+    /**
+     * @return the trimmed text, or null when empty
+     */
+    private static String checkedLength(String text, String field) {
+        String normalized = normalizeNullableText(text);
+        if (normalized != null && normalized.length() > MAX_TEXT_LENGTH) {
+            throw DomainValidationException.invalidField(field,
+                    field + " must be at most " + MAX_TEXT_LENGTH + " characters");
         }
         return normalized;
     }

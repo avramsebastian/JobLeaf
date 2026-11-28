@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,4 +29,16 @@ public interface ProfileJpaRepository extends JpaRepository<ProfileEntity, UUID>
             from ProfileEntity p
             where p.user.id = :userId""")
     Optional<ProfileMetadataRow> findMetadataByUserId(@Param("userId") UUID userId);
+
+    /**
+     * The same, for many users in one query (the applicants of a job).
+     */
+    @Query("""
+            select new com.seby.jobleaf.infrastructure.persistence.repository.ProfileMetadataRow(
+                p.id, p.user.id, p.jobTitle, p.location, p.experienceLevel, p.professionalBio, p.portfolioWebsite,
+                p.profilePictureName, p.profilePictureType, p.resumeName, p.resumeType,
+                p.createdAt, p.createdBy, p.updatedAt, p.updatedBy)
+            from ProfileEntity p
+            where p.user.id in :userIds""")
+    List<ProfileMetadataRow> findMetadataByUserIds(@Param("userIds") Collection<UUID> userIds);
 }

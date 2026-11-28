@@ -1,9 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useJobs } from '../context/JobContext';
 import { useAuth } from '../context/AuthContext';
 import { useJobsData } from '../contexts/JobsDataContext';
 import * as jobApplicationService from '../services/jobApplicationService';
+
+// Backend statuses (ApplicationStatus) and how they are shown. WITHDRAWN applications are not sent to the employer.
+const STATUS_LABELS = {
+  PENDING: 'Pending',
+  REVIEWED: 'Reviewed',
+  SHORTLISTED: 'Shortlisted',
+  INTERVIEWED: 'Interviewed',
+  OFFERED: 'Offered',
+  REJECTED: 'Rejected'
+};
+
+// The statuses the employer may set
+const EMPLOYER_STATUSES = ['REVIEWED', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'REJECTED'];
+
+// The applicant's picture, or the first letter of the name when there is none (or it is still loading)
+const ApplicantAvatar = ({ url, name, className, textClassName }) => (
+  url ? (
+    <img src={url} alt={name} className={`${className} rounded-full object-cover`} />
+  ) : (
+    <div className={`${className} bg-gradient-to-br from-primary-600 to-purple-600 dark:from-primary-500 dark:to-purple-500 rounded-full flex items-center justify-center`}>
+      <span className={`text-white font-bold ${textClassName}`}>{name?.charAt(0).toUpperCase()}</span>
+    </div>
+  )
+);
 
 const JobApplicants = () => {
   const { jobId } = useParams();
@@ -17,6 +40,11 @@ const JobApplicants = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Notes being typed, per application id, until they are saved
+  const [notesDrafts, setNotesDrafts] = useState({});
+  // Profile pictures as blob URLs, per application id (only applicants who uploaded one)
+  const [pictureUrls, setPictureUrls] = useState({});
+  const [openingResume, setOpeningResume] = useState(false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -39,6 +67,25 @@ const JobApplicants = () => {
   }, [showProfileModal, showContactModal]);
 
   useEffect(() => {
+    let cancelled = false;
+    let loadedUrls = [];
+
+    const loadPictures = async (applicationsList) => {
+      const withPicture = applicationsList.filter(app => app.applicant.hasProfilePicture);
+      // One small request per picture, all at the same time
+      const urls = await Promise.all(
+        withPicture.map(app => jobApplicationService.getApplicantPictureUrl(app.applicationId))
+      );
+      loadedUrls = urls.filter(Boolean);
+      if (cancelled) {
+        loadedUrls.forEach(url => URL.revokeObjectURL(url));
+        return;
+      }
+      setPictureUrls(Object.fromEntries(
+        withPicture.map((app, index) => [app.applicationId, urls[index]]).filter(([, url]) => url)
+      ));
+    };
+
     const loadJobAndApplications = async () => {
       if (!jobId || !isEmployer) {
         setLoading(false);
@@ -54,100 +101,32 @@ const JobApplicants = () => {
 
         // Fetch applications from backend
         const applicationsData = await jobApplicationService.getApplicationsByJob(jobId);
-        console.log('[JobApplicants] Fetched applications:', applicationsData);
 
-        // Transform backend data to match frontend format
-        const transformedApplications = applicationsData.map(app => {
-          const profile = app.userProfile;
-          console.log('[JobApplicants] Profile data:', profile);
-
-          // Helper function to convert Java byte array to base64
-          const byteArrayToBase64 = (byteArray) => {
-            if (!byteArray) return null;
-
-            // If it's already a string (base64 or data URL), return it
-            if (typeof byteArray === 'string') {
-              return byteArray;
-            }
-
-            // If it's not an array, log and return null
-            if (!Array.isArray(byteArray)) {
-              console.warn('[JobApplicants] Expected array but got:', typeof byteArray, byteArray);
-              return null;
-            }
-
-            if (byteArray.length === 0) return null;
-
-            try {
-              // Java bytes are signed (-128 to 127), convert to unsigned (0 to 255)
-              const bytes = new Uint8Array(byteArray.map(b => b & 0xFF));
-
-              // Convert to binary string
-              let binary = '';
-              const len = bytes.byteLength;
-              for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-              }
-
-              // Convert to base64
-              return btoa(binary);
-            } catch (error) {
-              console.error('[JobApplicants] Error converting byte array:', error);
-              return null;
-            }
-          };
-
-          // Convert byte array resume to base64 if exists
-          let resumeBase64 = null;
-          if (profile?.resume) {
-            console.log('[JobApplicants] Resume data type:', typeof profile.resume, 'Length:', profile.resume?.length);
-            const base64String = byteArrayToBase64(profile.resume);
-            if (base64String) {
-              // If it already has data URL prefix, use as is
-              if (base64String.startsWith('data:')) {
-                resumeBase64 = base64String;
-              } else {
-                resumeBase64 = `data:${profile.resumeType || 'application/pdf'};base64,${base64String}`;
-              }
-            }
-          }
-
-          // Convert byte array profile picture to base64 if exists
-          let profilePictureBase64 = null;
-          if (profile?.profilePicture) {
-            console.log('[JobApplicants] Profile picture type:', typeof profile.profilePicture, 'Length:', profile.profilePicture?.length);
-            const base64String = byteArrayToBase64(profile.profilePicture);
-            if (base64String) {
-              // If it already has data URL prefix, use as is
-              if (base64String.startsWith('data:')) {
-                profilePictureBase64 = base64String;
-              } else {
-                profilePictureBase64 = `data:${profile.profilePictureType || 'image/jpeg'};base64,${base64String}`;
-              }
-            }
-          }
-
-          return {
+        // The backend sends the applicant with profile details; the files are not part of the list
+        const transformedApplications = applicationsData.map(app => ({
+          applicationId: app.id,
+          notes: app.notes || '',
+          coverLetter: app.coverLetter || '',
+          applicant: {
+            name: app.applicant.name,
+            email: app.applicant.email,
+            title: app.applicant.jobTitle || 'Not specified',
+            phone: app.applicant.mobileNumber || 'Not provided',
+            location: app.applicant.location || 'Not specified',
+            bio: app.applicant.professionalBio || 'No bio available',
+            experience: app.applicant.experienceLevel || 'No experience provided',
             applicationId: app.id,
-            applicant: {
-              name: app.userName,
-              email: app.userEmail,
-              title: profile?.jobTitle || 'Not specified',
-              phone: app.userMobileNumber || 'Not provided',
-              location: profile?.location || 'Not specified',
-              bio: profile?.professionalBio || 'No bio available',
-              experience: profile?.experienceLevel || 'No experience provided',
-              resume: resumeBase64,
-              profileImage: profilePictureBase64,
-              portfolio: profile?.portfolioWebsite || null,
-              appliedAt: app.appliedAt,
-              status: app.status || 'PENDING'
-            }
-          };
-        });
+            hasResume: app.applicant.hasResume,
+            hasProfilePicture: app.applicant.hasProfilePicture,
+            portfolio: app.applicant.portfolioWebsite || null,
+            appliedAt: app.appliedAt,
+            status: app.status
+          }
+        }));
 
-        console.log('[JobApplicants] Transformed applications:', transformedApplications);
+        if (cancelled) return;
         setApplications(transformedApplications);
+        loadPictures(transformedApplications);
       } catch (error) {
         console.error('[JobApplicants] Error loading job applications:', error);
         showNotification('Failed to load applications', 'error');
@@ -157,30 +136,76 @@ const JobApplicants = () => {
     };
 
     loadJobAndApplications();
+
+    // Free the pictures when leaving the page (or before loading again)
+    return () => {
+      cancelled = true;
+      loadedUrls.forEach(url => URL.revokeObjectURL(url));
+    };
   }, [jobId, isEmployer, getJobById]);
+
+  const openResume = async () => {
+    // Open the tab right away (still part of the click), otherwise the browser blocks it as a pop-up
+    const tab = window.open('', '_blank');
+    setOpeningResume(true);
+    try {
+      const url = await jobApplicationService.getApplicantResumeUrl(selectedApplicant.applicationId);
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      console.error('Error opening resume:', error);
+      if (tab) tab.close();
+      showNotification('Could not open the resume', 'error');
+    } finally {
+      setOpeningResume(false);
+    }
+  };
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const replaceApplication = (updated) => {
+    setApplications(prev =>
+      prev.map(app =>
+        app.applicationId === updated.id
+          ? { ...app, notes: updated.notes || '', applicant: { ...app.applicant, status: updated.status } }
+          : app
+      )
+    );
+  };
+
   const handleStatusChange = async (applicationId, newStatus) => {
     try {
-      await jobApplicationService.updateApplicationStatus(applicationId, newStatus);
-
-      // Update local state
-      setApplications(prev =>
-        prev.map(app =>
-          app.applicationId === applicationId
-            ? { ...app, applicant: { ...app.applicant, status: newStatus } }
-            : app
-        )
-      );
-
+      // Notes are left out, so the backend keeps the stored ones
+      replaceApplication(await jobApplicationService.updateApplication(applicationId, newStatus));
       showNotification('Application status updated successfully!');
     } catch (error) {
       console.error('Error updating application status:', error);
-      showNotification('Failed to update application status', 'error');
+      showNotification(error.response?.data?.detail || 'Failed to update application status', 'error');
+    }
+  };
+
+  const handleSaveNotes = async (application) => {
+    const draft = notesDrafts[application.applicationId] ?? application.notes;
+    try {
+      replaceApplication(
+        await jobApplicationService.updateApplication(application.applicationId, application.applicant.status, draft)
+      );
+      setNotesDrafts(prev => {
+        const next = { ...prev };
+        delete next[application.applicationId];
+        return next;
+      });
+      showNotification('Notes saved');
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      showNotification(error.response?.data?.detail || 'Failed to save notes', 'error');
     }
   };
 
@@ -199,34 +224,31 @@ const JobApplicants = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Applied':
+      case 'PENDING':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'In Review':
+      case 'REVIEWED':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Interview':
+      case 'SHORTLISTED':
+      case 'INTERVIEWED':
         return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'Rejected':
+      case 'REJECTED':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'Hired':
+      case 'OFFERED':
         return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const filteredApplications = applications.filter(app => {
-    if (filter === 'all') return true;
-    return app.applicant.status.toLowerCase().replace(' ', '') === filter;
-  });
+  const filteredApplications = applications.filter(app => filter === 'all' || app.applicant.status === filter);
 
-  const statusCounts = {
-    all: applications.length,
-    applied: applications.filter(app => app.applicant.status === 'Applied').length,
-    inreview: applications.filter(app => app.applicant.status === 'In Review').length,
-    interview: applications.filter(app => app.applicant.status === 'Interview').length,
-    hired: applications.filter(app => app.applicant.status === 'Hired').length,
-    rejected: applications.filter(app => app.applicant.status === 'Rejected').length,
-  };
+  const statusCounts = Object.fromEntries([
+    ['all', applications.length],
+    ...Object.keys(STATUS_LABELS).map(status => [
+      status,
+      applications.filter(app => app.applicant.status === status).length
+    ])
+  ]);
 
   // Show loading state while auth is initializing
   if (authLoading) {
@@ -345,11 +367,7 @@ const JobApplicants = () => {
           <div className="flex flex-wrap gap-2">
             {[
               { key: 'all', label: 'All Applications' },
-              { key: 'applied', label: 'Applied' },
-              { key: 'inreview', label: 'In Review' },
-              { key: 'interview', label: 'Interview' },
-              { key: 'hired', label: 'Hired' },
-              { key: 'rejected', label: 'Rejected' }
+              ...Object.entries(STATUS_LABELS).map(([key, label]) => ({ key, label }))
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -404,11 +422,12 @@ const JobApplicants = () => {
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-purple-600 dark:from-primary-500 dark:to-purple-500 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {application.applicant.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
+                        <ApplicantAvatar
+                          url={pictureUrls[application.applicationId]}
+                          name={application.applicant.name}
+                          className="w-12 h-12 shrink-0"
+                          textClassName="text-lg"
+                        />
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
                             {application.applicant.name}
@@ -424,9 +443,37 @@ const JobApplicants = () => {
 
                     <div className="flex items-center space-x-3 mb-4">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(application.applicant.status)}`}>
-                        {application.applicant.status}
+                        {STATUS_LABELS[application.applicant.status]}
                       </span>
                     </div>
+                  </div>
+
+                  <div className="flex-1 lg:max-w-md lg:ml-8 mb-4">
+                    {application.coverLetter && (
+                      <details className="mb-4">
+                        <summary className="cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300">Cover letter</summary>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">{application.coverLetter}</p>
+                      </details>
+                    )}
+                    <label htmlFor={`notes-${application.applicationId}`} className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Internal notes <span className="font-normal text-gray-500 dark:text-gray-400">(only your company sees them)</span>
+                    </label>
+                    <textarea
+                      id={`notes-${application.applicationId}`}
+                      rows={3}
+                      maxLength={5000}
+                      value={notesDrafts[application.applicationId] ?? application.notes}
+                      onChange={(e) => setNotesDrafts(prev => ({ ...prev, [application.applicationId]: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                    />
+                    {notesDrafts[application.applicationId] !== undefined && (
+                      <button
+                        onClick={() => handleSaveNotes(application)}
+                        className="mt-2 px-4 py-1.5 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors font-semibold text-sm"
+                      >
+                        Save notes
+                      </button>
+                    )}
                   </div>
 
                   <div className="lg:ml-8 lg:text-right">
@@ -439,11 +486,11 @@ const JobApplicants = () => {
                         onChange={(e) => handleStatusChange(application.applicationId, e.target.value)}
                         className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 outline-none"
                       >
-                        <option value="Applied">Applied</option>
-                        <option value="In Review">In Review</option>
-                        <option value="Interview">Interview</option>
-                        <option value="Hired">Hired</option>
-                        <option value="Rejected">Rejected</option>
+                        {/* PENDING is only shown while nothing was decided; the employer can not set it back */}
+                        {application.applicant.status === 'PENDING' && <option value="PENDING" disabled>Pending</option>}
+                        {EMPLOYER_STATUSES.map(status => (
+                          <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -487,11 +534,12 @@ const JobApplicants = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary-600 to-purple-600 dark:from-primary-500 dark:to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white font-bold text-2xl">
-                    {selectedApplicant.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                <ApplicantAvatar
+                  url={pictureUrls[selectedApplicant.applicationId]}
+                  name={selectedApplicant.name}
+                  className="w-16 h-16 mx-auto mb-4"
+                  textClassName="text-2xl"
+                />
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{selectedApplicant.name}</h3>
                 <p className="text-gray-600 dark:text-gray-400">{selectedApplicant.title}</p>
               </div>
@@ -562,23 +610,12 @@ const JobApplicants = () => {
             <div className="p-8 overflow-y-auto max-h-[85vh]">
               <div className="text-center mb-8">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg mx-auto mb-4">
-                  {selectedApplicant.profileImage ? (
-                    <img
-                      src={selectedApplicant.profileImage}
-                      alt={selectedApplicant.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback if image fails to load
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div className={`w-full h-full bg-gradient-to-br from-primary-600 to-purple-600 dark:from-primary-500 dark:to-purple-500 flex items-center justify-center ${selectedApplicant.profileImage ? 'hidden' : ''}`}>
-                    <span className="text-white font-bold text-3xl">
-                      {selectedApplicant.name?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  <ApplicantAvatar
+                    url={pictureUrls[selectedApplicant.applicationId]}
+                    name={selectedApplicant.name}
+                    className="w-full h-full"
+                    textClassName="text-3xl"
+                  />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{selectedApplicant.name}</h3>
                 <p className="text-xl text-primary-600 dark:text-primary-400 mb-2">{selectedApplicant.title}</p>
@@ -601,96 +638,18 @@ const JobApplicants = () => {
                 {/* Resume */}
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Resume</h4>
-                  {selectedApplicant.resume ? (
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="text-red-500 mr-3">
-                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-gray-100">{selectedApplicant.name.replace(/\s+/g, '_')}_Resume.pdf</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">Click to view or download resume</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            try {
-                              const base64Data = selectedApplicant.resume;
-
-                              // Check if it's a valid base64 data URL
-                              if (!base64Data || !base64Data.startsWith('data:application/pdf;base64,')) {
-                                alert('Resume file is not available or in an invalid format.');
-                                return;
-                              }
-
-                              // Extract the base64 string (remove data URL prefix)
-                              const base64String = base64Data.split(',')[1];
-
-                              // Convert base64 to bytes
-                              const binaryString = atob(base64String);
-                              const bytes = new Uint8Array(binaryString.length);
-                              for (let i = 0; i < binaryString.length; i++) {
-                                bytes[i] = binaryString.charCodeAt(i);
-                              }
-
-                              // Create blob and open in new tab
-                              const blob = new Blob([bytes], { type: 'application/pdf' });
-                              const blobUrl = URL.createObjectURL(blob);
-
-                              // Open in new tab
-                              const newTab = window.open(blobUrl, '_blank');
-                              if (newTab) {
-                                newTab.focus();
-                                // Clean up the blob URL after a delay
-                                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-                              } else {
-                                // Fallback: trigger download if popup blocked
-                                const downloadLink = document.createElement('a');
-                                downloadLink.href = blobUrl;
-                                downloadLink.download = `${selectedApplicant.name.replace(/\s+/g, '_')}_Resume.pdf`;
-                                downloadLink.click();
-                                URL.revokeObjectURL(blobUrl);
-                              }
-                            } catch (error) {
-                              console.error('Error opening resume:', error);
-                              alert('Sorry, there was an error opening the resume. The file may be corrupted or in an unsupported format.');
-                            }
-                          }}
-                          className="px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors font-semibold text-sm"
-                        >
-                          View Resume
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="text-gray-400 dark:text-gray-500 mr-3">
-                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-500 dark:text-gray-400">No resume uploaded</div>
-                            <div className="text-sm text-gray-400 dark:text-gray-500">Candidate has not provided a resume yet</div>
-                          </div>
-                        </div>
-                        <div className="text-sm text-gray-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
-                          <div className="font-medium text-blue-800 dark:text-blue-300 mb-1">💡 To test resume viewing:</div>
-                          <div className="text-blue-700 dark:text-blue-400">
-                            The test user "Alex Brown" has a sample PDF resume.<br/>
-                            1. Apply for a job as Alex Brown<br/>
-                            2. Login as employer to see the resume<br/>
-                            3. Click "View Resume" to test the functionality
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 flex items-center justify-between gap-4">
+                    <span>{selectedApplicant.hasResume ? '📄 Resume (PDF)' : 'No resume uploaded'}</span>
+                    {selectedApplicant.hasResume && (
+                      <button
+                        onClick={openResume}
+                        disabled={openingResume}
+                        className="px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors font-semibold text-sm disabled:opacity-60"
+                      >
+                        {openingResume ? 'Opening...' : 'View Resume'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Work Experience */}

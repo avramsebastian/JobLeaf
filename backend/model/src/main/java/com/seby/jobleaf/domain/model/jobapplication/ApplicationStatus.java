@@ -11,5 +11,12 @@ public enum ApplicationStatus {
     INTERVIEWED,
     OFFERED,
     REJECTED,
-    WITHDRAWN
+    WITHDRAWN;
+
+    /**
+     * The statuses an employer may set; PENDING and WITHDRAWN belong to the job seeker.
+     */
+    public boolean isSetByEmployer() {
+        return this != PENDING && this != WITHDRAWN;
+    }
 }

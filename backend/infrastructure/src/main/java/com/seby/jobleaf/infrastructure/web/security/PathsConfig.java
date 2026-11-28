@@ -45,7 +45,11 @@ public class PathsConfig {
     public List<String> employerPaths() {
         return List.of(
                 "/jobleaf/jobs/employer",
-                "/jobleaf/jobs/{jobId}/status/employer"
+                "/jobleaf/jobs/{jobId}/status/employer",
+                "/jobleaf/jobs/{jobId}/applications/employer",
+                "/jobleaf/jobs/applications/{applicationId}/employer",
+                "/jobleaf/jobs/applications/{applicationId}/picture/employer",
+                "/jobleaf/jobs/applications/{applicationId}/resume/employer"
         );
     }
 

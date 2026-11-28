@@ -1,6 +1,7 @@
 package com.seby.jobleaf.domain.port.out.jobapplication;
 
 import com.seby.jobleaf.domain.model.jobapplication.JobApplication;
+import com.seby.jobleaf.domain.model.jobapplication.ReceivedApplication;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +23,17 @@ public interface JobApplicationRepositoryPort {
     List<JobApplication> findAllByUser(UUID userId);
 
     /**
-     * Creates the application, or updates status, applied date and cover letter of an existing one.
+     * @return the job's applications with their applicants, newest first, without the withdrawn ones
+     */
+    List<ReceivedApplication> findReceivedByJob(UUID jobId);
+
+    /**
+     * @return the application (any status) with its job and its applicant
+     */
+    Optional<ReceivedApplication> findReceivedById(UUID applicationId);
+
+    /**
+     * Creates the application, or updates status, applied date, cover letter and notes of an existing one.
      */
     JobApplication save(JobApplication application);
 }
