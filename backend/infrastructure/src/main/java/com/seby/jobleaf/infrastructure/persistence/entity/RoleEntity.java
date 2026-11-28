@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.entity;
 
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

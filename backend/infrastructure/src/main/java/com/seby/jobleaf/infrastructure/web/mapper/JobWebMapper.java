@@ -1,7 +1,12 @@
 package com.seby.jobleaf.infrastructure.web.mapper;
 
+import com.seby.jobleaf.apis.generated.model.CreateJobRequest;
 import com.seby.jobleaf.apis.generated.model.JobResponse;
-import com.seby.jobleaf.domain.model.Job;
+import com.seby.jobleaf.apis.generated.model.UnsaveJobResponse;
+import com.seby.jobleaf.apis.generated.model.UpdateJobStatusRequest;
+import com.seby.jobleaf.domain.model.job.Job;
+import com.seby.jobleaf.domain.model.job.JobDetails;
+import com.seby.jobleaf.domain.model.job.JobStatus;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -16,6 +21,8 @@ import static java.util.Optional.ofNullable;
  */
 @Component
 public class JobWebMapper {
+
+    static final String UNSAVE_SUCCESS_MESSAGE = "Job removed from saved jobs";
 
     public JobResponse toJobResponse(Job job) {
         var response = new JobResponse();
@@ -51,6 +58,49 @@ public class JobWebMapper {
     public List<JobResponse> toListJobsResponse(List<Job> jobs) {
         return ofNullable(jobs).map(list -> list.stream().map(this::toJobResponse).toList())
                 .orElse(null);
+    }
+
+    /**
+     * Request DTO to domain details. The enums carry the display values ("Full-time", "Entry Level"), which are
+     * stored as they are, like the existing jobs. JobDetails validates again.
+     */
+    public JobDetails toJobDetails(CreateJobRequest request) {
+        return new JobDetails(
+                request.getTitle(),
+                request.getLocation(),
+                value(request.getWorkType()),
+                value(request.getJobType()),
+                value(request.getCategory()),
+                value(request.getExperienceLevel()),
+                request.getSalaryMin(),
+                request.getSalaryMax(),
+                request.getSalaryCurrency(),
+                value(request.getSalaryPeriod()),
+                request.getDescription(),
+                request.getRequirements(),
+                request.getBenefits(),
+                request.getApplicationDeadline() == null ? null : request.getApplicationDeadline().toInstant(),
+                Boolean.TRUE.equals(request.getFeatured()),
+                Boolean.TRUE.equals(request.getUrgent()),
+                Boolean.TRUE.equals(request.getRemote())
+        );
+    }
+
+    public UnsaveJobResponse toUnsaveJobResponse() {
+        var response = new UnsaveJobResponse();
+        response.setMessage(UNSAVE_SUCCESS_MESSAGE);
+        return response;
+    }
+
+    public JobStatus toJobStatus(UpdateJobStatusRequest request) {
+        return JobStatus.from(request.getStatus().getValue());
+    }
+
+    /**
+     * The generated enums all have getValue(); null stays null so the domain reports the missing field.
+     */
+    private static String value(Object generatedEnum) {
+        return generatedEnum == null ? null : generatedEnum.toString();
     }
 
     private OffsetDateTime convertInstant(Instant instant) {

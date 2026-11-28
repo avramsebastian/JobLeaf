@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getProfile, updateProfile as updateProfileApi, getProfilePictureUrl } from '../services/profileService';
+import {
+  getProfile, updateProfile as updateProfileApi, getProfilePictureUrl,
+  checkFile, PICTURE_EXTENSIONS, RESUME_EXTENSIONS
+} from '../services/profileService';
 
 const Profile = () => {
-  const { user, updateProfile, updateProfileComplete, isJobSeeker, isLoading: authLoading } = useAuth();
+  const { user, updateProfile, updateProfileComplete, refreshProfilePicture, isJobSeeker, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -48,7 +51,7 @@ const Profile = () => {
         if (profileData && profileData.id) {
           // Load profile picture if available
           let profileImageUrl = null;
-          if (profileData.profilePictureName) {
+          if (profileData.hasProfilePicture) {
             profileImageUrl = await getProfilePictureUrl();
           }
 
@@ -63,7 +66,7 @@ const Profile = () => {
             skills: [],
             portfolio: profileData.portfolioWebsite || '',
             profileImage: profileImageUrl,
-            resume: profileData.resumeName ? 'Uploaded' : null,
+            resume: profileData.hasResume ? profileData.resumeName : null,
             education: [],
             workHistory: []
           };
@@ -134,12 +137,13 @@ const Profile = () => {
   const handleFileChange = (e, fieldName) => {
     const file = e.target.files[0];
     if (file) {
-      if (fieldName === 'profileImage' && !file.type.startsWith('image/')) {
-        showNotification('Please upload a valid image file', 'error');
-        return;
-      }
-      if (fieldName === 'resume' && file.type !== 'application/pdf') {
-        showNotification('Please upload a PDF file for resume', 'error');
+      // Same rules as the backend (which also checks the real content of the file)
+      const problem = fieldName === 'profileImage'
+        ? checkFile(file, PICTURE_EXTENSIONS, 'Profile picture')
+        : checkFile(file, RESUME_EXTENSIONS, 'Resume');
+      if (problem) {
+        showNotification(problem, 'error');
+        e.target.value = '';
         return;
       }
 
@@ -248,11 +252,7 @@ const Profile = () => {
       return false;
     }
 
-    if (!formData.resume) {
-      showNotification('Please upload your resume', 'error');
-      return false;
-    }
-
+    // The resume is not needed to save: the profile is filled in two steps (details first, files later)
     return true;
   };
 
@@ -287,13 +287,15 @@ const Profile = () => {
         let updatedProfileImage = formData.profileImage;
         if (profilePictureFile) {
           updatedProfileImage = await getProfilePictureUrl();
+          // Also update the avatar in the navbar
+          refreshProfilePicture();
         }
 
         // Update form data with new profile picture
         const updatedFormData = {
           ...formData,
           profileImage: updatedProfileImage,
-          resume: result.resumeName ? 'Uploaded' : formData.resume
+          resume: result.hasResume ? result.resumeName : formData.resume
         };
 
         setFormData(updatedFormData);
@@ -313,7 +315,10 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      showNotification(error.response?.data?.message || 'An error occurred while updating profile', 'error');
+      // Problem details: field problems (e.g. "resume content is not a valid pdf file") in "errors", else "detail"
+      const data = error.response?.data;
+      const message = data?.errors ? Object.values(data.errors).join('. ') : data?.detail;
+      showNotification(message || 'An error occurred while updating profile', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -467,7 +472,7 @@ const Profile = () => {
                       </svg>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                         onChange={(e) => handleFileChange(e, 'profileImage')}
                         className="hidden"
                       />
@@ -551,7 +556,7 @@ const Profile = () => {
                       <option value="Entry Level">Entry Level (0-2 years)</option>
                       <option value="Mid Level">Mid Level (2-5 years)</option>
                       <option value="Senior Level">Senior Level (5-8 years)</option>
-                      <option value="Lead Level">Lead Level (8+ years)</option>
+                      <option value="Executive Level">Executive Level (8+ years)</option>
                     </select>
                   </div>
                 </div>
@@ -587,7 +592,7 @@ const Profile = () => {
             {activeTab === 'files' && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Resume *</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Resume</h3>
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center">
                     {formData.resume ? (
                       <div className="space-y-4">
@@ -631,7 +636,7 @@ const Profile = () => {
                               Upload New Resume
                               <input
                                 type="file"
-                                accept=".pdf"
+                                accept=".pdf,application/pdf"
                                 onChange={(e) => handleFileChange(e, 'resume')}
                                 className="hidden"
                               />
@@ -653,7 +658,7 @@ const Profile = () => {
                             Choose Resume File
                             <input
                               type="file"
-                              accept=".pdf"
+                              accept=".pdf,application/pdf"
                               onChange={(e) => handleFileChange(e, 'resume')}
                               className="hidden"
                             />
@@ -682,7 +687,7 @@ const Profile = () => {
                             Change Picture
                             <input
                               type="file"
-                              accept="image/*"
+                              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                               onChange={(e) => handleFileChange(e, 'profileImage')}
                               className="hidden"
                             />
@@ -705,7 +710,7 @@ const Profile = () => {
                             Choose Image
                             <input
                               type="file"
-                              accept="image/*"
+                              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                               onChange={(e) => handleFileChange(e, 'profileImage')}
                               className="hidden"
                             />

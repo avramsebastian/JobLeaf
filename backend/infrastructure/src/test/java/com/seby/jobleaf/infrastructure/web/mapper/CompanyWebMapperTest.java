@@ -1,7 +1,7 @@
 package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.CompanyResponse;
-import com.seby.jobleaf.domain.model.Company;
+import com.seby.jobleaf.domain.model.company.Company;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

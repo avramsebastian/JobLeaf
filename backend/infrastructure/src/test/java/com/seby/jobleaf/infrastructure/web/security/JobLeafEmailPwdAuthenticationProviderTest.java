@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobLeafUserEntity;
 import com.seby.jobleaf.infrastructure.persistence.entity.RoleEntity;
 import com.seby.jobleaf.infrastructure.persistence.repository.JobLeafUserJpaRepository;

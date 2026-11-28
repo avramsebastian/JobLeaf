@@ -38,8 +38,12 @@ export const API_ENDPOINTS = {
   LOGOUT: "/auth/logout/public",
 
   // User endpoints
-  PROFILE: "/profile",
-  UPDATE_PROFILE: "/profile",
+  // Job seeker only (ROLE_JOB_SEEKER): the profile without files (GET), create or update it (PUT, multipart),
+  // and the two files on their own, so the profile details never carry megabytes
+  PROFILE: "/profile/jobseeker",
+  UPDATE_PROFILE: "/profile/jobseeker",
+  PROFILE_PICTURE: "/profile/picture/jobseeker",
+  PROFILE_RESUME: "/profile/resume/jobseeker",
 
   // Contact endpoints
   CONTACTS: "/contacts/public",
@@ -60,27 +64,32 @@ export const API_ENDPOINTS = {
   ASSIGN_COMPANY_TO_EMPLOYER: (userId, companyId) => `/users/${userId}/company/${companyId}/admin`,
 
   // Employer Job Management endpoints
-  EMPLOYER_JOBS: "/employer/jobs",
-  POST_JOB: "/employer/jobs",
-  UPDATE_JOB_STATUS: (jobId) => `/employer/jobs/${jobId}/status`,
+  // Employer only (ROLE_EMPLOYER): list (GET) and create (POST) jobs of the employer's own company,
+  // change a job's status (PATCH with {"status": "ACTIVE" | "CLOSED"})
+  EMPLOYER_JOBS: "/jobs/employer",
+  POST_JOB: "/jobs/employer",
+  UPDATE_JOB_STATUS: (jobId) => `/jobs/${jobId}/status/employer`,
 
   // Saved Jobs endpoints
-  SAVED_JOBS: "/saved-jobs",
-  SAVED_JOB_IDS: "/saved-jobs/ids",
-  SAVE_JOB: (jobId) => `/saved-jobs/${jobId}`,
-  UNSAVE_JOB: (jobId) => `/saved-jobs/${jobId}`,
-  CHECK_JOB_SAVED: (jobId) => `/saved-jobs/check/${jobId}`,
+  // Job seeker only (ROLE_JOB_SEEKER): list (GET), save (POST) and unsave (DELETE) jobs of the logged-in user
+  SAVED_JOBS: "/saved-jobs/jobseeker",
+  SAVE_JOB: (jobId) => `/saved-jobs/${jobId}/jobseeker`,
+  UNSAVE_JOB: (jobId) => `/saved-jobs/${jobId}/jobseeker`,
 
   // Job Application endpoints
   JOB_APPLICATIONS: "/job-applications",
-  APPLY_JOB: "/job-applications",
-  WITHDRAW_APPLICATION: (jobId) => `/job-applications/${jobId}`,
-  MY_APPLICATIONS: "/job-applications/my-applications",
-  APPLIED_JOB_IDS: "/job-applications/applied-job-ids",
-  CHECK_APPLIED: (jobId) => `/job-applications/check/${jobId}`,
-  APPLICATIONS_BY_JOB: (jobId) => `/job-applications/job/${jobId}`,
-  COMPANY_APPLICATIONS: "/job-applications/company-applications",
-  UPDATE_APPLICATION_STATUS: (applicationId) => `/job-applications/${applicationId}/status`,
+  // Job seeker only (ROLE_JOB_SEEKER): apply (POST {jobId, coverLetter}), own applications (GET),
+  // withdraw (DELETE, keeps the application with status WITHDRAWN)
+  APPLY_JOB: "/job-applications/jobseeker",
+  MY_APPLICATIONS: "/job-applications/jobseeker",
+  WITHDRAW_APPLICATION: (jobId) => `/job-applications/${jobId}/jobseeker`,
+  // Employer only (ROLE_EMPLOYER): applications received for a job of the own company (GET),
+  // change status and internal notes of one (PATCH {status, notes?})
+  APPLICATIONS_BY_JOB: (jobId) => `/jobs/${jobId}/applications/employer`,
+  UPDATE_JOB_APPLICATION: (applicationId) => `/jobs/applications/${applicationId}/employer`,
+  // Employer only: the applicant's files, read one at a time (GET, binary)
+  APPLICANT_PICTURE: (applicationId) => `/jobs/applications/${applicationId}/picture/employer`,
+  APPLICANT_RESUME: (applicationId) => `/jobs/applications/${applicationId}/resume/employer`,
 };
 
 // HTTP Headers

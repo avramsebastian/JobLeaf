@@ -142,6 +142,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Should treat a browser that closed the connection as handled: no 500, nothing to write")
+    void clientDisconnected_isNotAnError() {
+        // What Tomcat throws when the browser goes away mid-response (reload, navigation, closed tab)
+        var abort = new org.apache.catalina.connector.ClientAbortException(
+                new java.io.IOException("An established connection was aborted by the software in your host machine"));
+        var writeFailure = new org.springframework.http.converter.HttpMessageNotWritableException(
+                "Could not write JSON", abort);
+
+        assertThat(handler.handleUnexpected(writeFailure, request)).isNull();
+    }
+
+    @Test
     @DisplayName("Should map unexpected exceptions to a generic 500 without leaking the exception message")
     void handleUnexpected_returnsGeneric500() {
         // Given

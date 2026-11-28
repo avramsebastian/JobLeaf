@@ -1,6 +1,6 @@
 package com.seby.jobleaf.domain.port.out.company;
 
-import com.seby.jobleaf.domain.model.Company;
+import com.seby.jobleaf.domain.model.company.Company;
 
 import java.util.List;
 import java.util.Optional;

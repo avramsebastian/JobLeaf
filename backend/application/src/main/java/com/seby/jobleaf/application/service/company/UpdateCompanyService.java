@@ -2,8 +2,8 @@ package com.seby.jobleaf.application.service.company;
 
 import com.seby.jobleaf.domain.exceptions.company.CompanyAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.company.CompanyNotFoundException;
-import com.seby.jobleaf.domain.model.Company;
-import com.seby.jobleaf.domain.model.CompanyDetails;
+import com.seby.jobleaf.domain.model.company.Company;
+import com.seby.jobleaf.domain.model.company.CompanyDetails;
 import com.seby.jobleaf.domain.port.in.company.UpdateCompanyUseCase;
 import com.seby.jobleaf.domain.port.out.company.CompanyRepositoryPort;
 import lombok.RequiredArgsConstructor;

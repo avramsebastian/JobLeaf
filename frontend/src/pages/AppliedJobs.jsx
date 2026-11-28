@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useJobs } from '../context/JobContext';
 import { useAuth } from '../context/AuthContext';
+import { useCompanies } from '../contexts/CompaniesContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const AppliedJobs = () => {
   const { appliedJobs, withdrawApplication } = useJobs();
   const { user, isJobSeeker, isAuthenticated, isLoading: authLoading } = useAuth();
+  // Jobs only carry the companyId; name and logo come from the (cached) company list
+  const { getCompanyById } = useCompanies();
   const [notification, setNotification] = useState(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [jobToWithdraw, setJobToWithdraw] = useState(null);
@@ -173,6 +176,7 @@ const AppliedJobs = () => {
           <div className="grid grid-cols-1 gap-6">
             {appliedJobs
               .sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt))
+              .map((job) => ({ ...job, company: getCompanyById(job.companyId) }))
               .map((job) => (
               <div
                 key={job.applicationId}
@@ -183,8 +187,8 @@ const AppliedJobs = () => {
                     <div className="flex items-start space-x-6 mb-6">
                       <div className="p-3 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl w-16 h-16 flex items-center justify-center">
                         <img
-                          src={job.companyLogo}
-                          alt={`${job.companyName || job.company} logo`}
+                          src={job.company?.logo}
+                          alt={`${job.company?.name || 'Company'} logo`}
                           className="w-12 h-12 object-contain"
                           onError={(e) => {
                             e.target.style.display = 'none';
@@ -192,7 +196,7 @@ const AppliedJobs = () => {
                           }}
                         />
                         <div className="text-2xl font-bold text-primary-600 dark:text-primary-400 hidden w-12 h-12 items-center justify-center">
-                          {(job.companyName || job.company || 'C').charAt(0)}
+                          {(job.company?.name || 'C').charAt(0)}
                         </div>
                       </div>
                       <div className="flex-1">
@@ -208,7 +212,7 @@ const AppliedJobs = () => {
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center text-gray-600 dark:text-gray-400 space-x-4 mb-4">
-                          <span className="text-lg font-semibold text-primary-600 dark:text-primary-400">{job.companyName || job.company}</span>
+                          <span className="text-lg font-semibold text-primary-600 dark:text-primary-400">{job.company?.name}</span>
                           <span>•</span>
                           <span className="flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -254,12 +258,15 @@ const AppliedJobs = () => {
                       >
                         View Job
                       </Link>
+                      {/* A rejected application can not be withdrawn (the backend answers 409) */}
+                      {job.status !== 'REJECTED' && (
                       <button
                         onClick={() => handleWithdraw(job.id)}
                         className="px-6 py-2 border-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl hover:border-red-300 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold"
                       >
                         Withdraw
                       </button>
+                      )}
                     </div>
                   </div>
                 </div>

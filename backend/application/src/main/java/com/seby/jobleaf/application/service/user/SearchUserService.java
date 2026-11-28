@@ -1,7 +1,7 @@
 package com.seby.jobleaf.application.service.user;
 
 import com.seby.jobleaf.domain.exceptions.user.UserNotFoundException;
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.domain.port.in.user.SearchUserUseCase;
 import com.seby.jobleaf.domain.port.out.auth.UserRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,6 @@ public class SearchUserService implements SearchUserUseCase {
     @Transactional(readOnly = true)
     public JobLeafUser searchByEmail(String email) {
         Objects.requireNonNull(email, "email");
-        // The repository lower-cases and trims the email, like at registration
         var user = userRepositoryPort.findByEmail(email).orElseThrow(() -> {
             log.info("No user found for the searched email");
             return UserNotFoundException.byEmail(email.trim());

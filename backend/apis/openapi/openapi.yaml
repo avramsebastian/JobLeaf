@@ -21,6 +21,16 @@ tags:
     description: Contacts management endpoints.
   - name: User
     description: User management endpoints for the admin.
+  - name: Job
+    description: Job management endpoints for employers.
+  - name: Profile
+    description: Job seeker profile with picture and resume.
+  - name: SavedJob
+    description: Jobs saved by a job seeker.
+  - name: JobApplication
+    description: Job applications of a job seeker.
+  - name: EmployerJobApplication
+    description: Applications an employer received for the jobs of their company.
   - name: Authentication
     description: Authentication endpoints.
   - name: CSRF
@@ -356,6 +366,519 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '406': {$ref: '#/components/responses/NotAcceptable'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/employer:
+    get:
+      tags: [ Job ]
+      operationId: listEmployerJobs
+      summary: List the jobs of the employer's company.
+      description: >-
+        Returns all jobs (every status, newest first) of the company the logged-in employer is assigned to.
+        403 if the user is not an employer or has no company yet. Requires ROLE_EMPLOYER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Jobs retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ Job ]
+      operationId: createJob
+      summary: Create a job for the employer's company.
+      description: >-
+        Creates a job in status DRAFT for the company of the logged-in employer (the company is never taken from
+        the request). All fields are required. Requires ROLE_EMPLOYER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '201':
+          description: Job created as DRAFT.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/{jobId}/status/employer:
+    patch:
+      tags: [ Job ]
+      operationId: updateJobStatus
+      summary: Change the status of a job.
+      description: >-
+        Publishes (ACTIVE), closes (CLOSED) or reopens a job of the employer's own company. A job can not go back
+        to DRAFT once it left it; setting the current status changes nothing. Jobs of other companies answer 404.
+        Requires ROLE_EMPLOYER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/UpdateJobStatusRequest'
+      responses:
+        '200':
+          description: Job status updated.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getProfile
+      summary: Get the job seeker's profile.
+      description: >-
+        Returns the profile of the logged-in job seeker WITHOUT the file contents (only names and types), so the
+        response stays small. The files have their own endpoints. 404 if no profile was saved yet.
+        Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Profile found.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    put:
+      tags: [ Profile ]
+      operationId: createOrUpdateProfile
+      summary: Create or update the job seeker's profile.
+      description: >-
+        Multipart request: the 'profile' part (JSON) is required every time; 'profilePicture' (jpg, jpeg or png) and
+        'resume' (pdf) are optional, max 10 MB each. A file that is not sent keeps the stored one. The content of
+        every file is checked, not only its name. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ profile ]
+              properties:
+                profile:
+                  $ref: '#/components/schemas/ProfileRequest'
+                profilePicture:
+                  type: string
+                  format: binary
+                  description: jpg, jpeg or png, max 10 MB.
+                resume:
+                  type: string
+                  format: binary
+                  description: pdf, max 10 MB.
+            encoding:
+              profile:
+                contentType: application/json
+      responses:
+        '200':
+          description: Profile saved.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/picture/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getProfilePicture
+      summary: Get the job seeker's profile picture.
+      description: The picture as image bytes, shown inline. 404 if there is none. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /profile/resume/jobseeker:
+    get:
+      tags: [ Profile ]
+      operationId: getResume
+      summary: Download the job seeker's resume.
+      description: The resume as a PDF download (Content-Disposition attachment). 404 if there is none. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: The resume.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /saved-jobs/jobseeker:
+    get:
+      tags: [ SavedJob ]
+      operationId: listSavedJobs
+      summary: List the jobs the job seeker saved.
+      description: >-
+        Returns the saved jobs of the logged-in job seeker, newest posted first. A saved job that was closed later is
+        still listed, with its status. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Saved jobs retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /saved-jobs/{jobId}/jobseeker:
+    post:
+      tags: [ SavedJob ]
+      operationId: saveJob
+      summary: Save a job.
+      description: >-
+        Saves an ACTIVE job for the logged-in job seeker. Saving it again changes nothing. Jobs that do not exist or
+        are not published (drafts) answer 404. Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The saved job.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    delete:
+      tags: [ SavedJob ]
+      operationId: unsaveJob
+      summary: Remove a job from the saved jobs.
+      description: Removes the job from the logged-in job seeker's saved jobs. Removing a job that was not saved changes nothing. Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The job is no longer saved.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/UnsaveJobResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /job-applications/jobseeker:
+    get:
+      tags: [ JobApplication ]
+      operationId: listMyApplications
+      summary: List the job seeker's applications.
+      description: >-
+        All applications of the logged-in job seeker with their job, newest first. Withdrawn applications are included
+        with status WITHDRAWN. The employer's internal notes are never returned. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobApplicationResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+    post:
+      tags: [ JobApplication ]
+      operationId: applyForJob
+      summary: Apply for a job.
+      description: >-
+        Applies the logged-in job seeker to an ACTIVE job whose deadline has not passed. Requires a profile with a
+        resume (409 with errors.profile otherwise). Applying twice answers 409; after a withdrawal the same application
+        is reopened. Requires ROLE_JOB_SEEKER.
+      parameters: [ ]
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/ApplyJobRequest'
+      responses:
+        '201':
+          description: Application submitted.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /job-applications/{jobId}/jobseeker:
+    delete:
+      tags: [ JobApplication ]
+      operationId: withdrawApplication
+      summary: Withdraw the application for a job.
+      description: >-
+        Sets the logged-in job seeker's application for this job to WITHDRAWN (the history is kept). Withdrawing again
+        changes nothing; a rejected application can not be withdrawn (409). Requires ROLE_JOB_SEEKER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The withdrawn application.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/JobApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/{jobId}/applications/employer:
+    get:
+      tags: [ EmployerJobApplication ]
+      operationId: getApplicationsByJobForEmployer
+      summary: List the applications received for a job.
+      description: >-
+        All applications for a job of the employer's own company, newest first, with the applicant's contact details
+        and profile (without the files). Withdrawn applications are left out. Jobs of other companies answer 404.
+        Requires ROLE_EMPLOYER.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique job identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReceivedApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/applications/{applicationId}/employer:
+    patch:
+      tags: [ EmployerJobApplication ]
+      operationId: updateJobApplication
+      summary: Change the status and notes of a received application.
+      description: >-
+        Moves an application for a job of the employer's own company to REVIEWED, SHORTLISTED, INTERVIEWED, OFFERED
+        or REJECTED (PENDING and WITHDRAWN are set by the job seeker: 400). The notes are internal and never shown to
+        the job seeker; leaving notes out keeps the stored ones, an empty text removes them. A withdrawn application
+        can not be changed (409). Applications for other companies' jobs answer 404. Requires ROLE_EMPLOYER.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          description: Unique job application identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/vnd.jobleaf+json;v=1.0:
+            schema:
+              $ref: '#/components/schemas/UpdateJobApplicationRequest'
+      responses:
+        '200':
+          description: Application updated.
+          content:
+            application/vnd.jobleaf+json;v=1.0:
+              schema:
+                $ref: '#/components/schemas/ReceivedApplicationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/applications/{applicationId}/picture/employer:
+    get:
+      tags: [ EmployerJobApplication ]
+      operationId: getApplicantProfilePicture
+      summary: Get the profile picture of an applicant.
+      description: >-
+        The picture of the job seeker behind an application for a job of the employer's own company, as image bytes
+        shown inline. 404 if there is none, if the application was withdrawn, or if it is for another company's job.
+        Requires ROLE_EMPLOYER.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          description: Unique job application identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        default: {$ref: '#/components/responses/UnexpectedError'}
+
+  /jobs/applications/{applicationId}/resume/employer:
+    get:
+      tags: [ EmployerJobApplication ]
+      operationId: getApplicantResume
+      summary: Download the resume of an applicant.
+      description: >-
+        The resume of the job seeker behind an application for a job of the employer's own company, as a PDF
+        download. 404 if there is none, if the application was withdrawn, or if it is for another company's job.
+        Requires ROLE_EMPLOYER.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          description: Unique job application identifier.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The resume.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
         default: {$ref: '#/components/responses/UnexpectedError'}
 
@@ -1129,6 +1652,270 @@ components:
         updatedBy:
           $ref: '#/components/schemas/Uuid'
 
+    JobStatus:
+      type: string
+      enum: [ DRAFT, ACTIVE, CLOSED ]
+      description: DRAFT when created, ACTIVE when published (visible to job seekers), CLOSED when no longer open.
+
+    UpdateJobStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
+
+    CreateJobRequest:
+      type: object
+      additionalProperties: false
+      description: A new job. The company is the employer's own and the status is always DRAFT.
+      required: [ title, location, workType, jobType, category, experienceLevel, salaryMin, salaryMax,
+                  salaryCurrency, salaryPeriod, description, requirements, benefits, applicationDeadline,
+                  featured, urgent, remote ]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: "Senior Frontend Developer"
+        location:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Bucharest"
+        workType:
+          type: string
+          enum: [ On-site, Remote, Hybrid ]
+        jobType:
+          type: string
+          enum: [ Full-time, Part-time, Contract, Freelance ]
+        category:
+          type: string
+          enum: [ Technology, Design, Marketing, Sales, Finance, Healthcare, Education, Operations ]
+        experienceLevel:
+          type: string
+          enum: [ Entry Level, Mid Level, Senior Level, Executive Level ]
+        salaryMin:
+          type: number
+          minimum: 0
+          example: 50000
+        salaryMax:
+          type: number
+          minimum: 0
+          description: Must be greater than or equal to salaryMin.
+          example: 80000
+        salaryCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO currency code.
+          example: "EUR"
+        salaryPeriod:
+          type: string
+          enum: [ hour, month, year ]
+        description:
+          type: string
+          minLength: 20
+          maxLength: 10000
+          example: "We are looking for a skilled frontend developer to join our team."
+        requirements:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+          example: [ "React", "TypeScript" ]
+        benefits:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+          example: [ "Health Insurance", "Remote Work" ]
+        applicationDeadline:
+          $ref: '#/components/schemas/DateTime'
+        featured:
+          type: boolean
+        urgent:
+          type: boolean
+        remote:
+          type: boolean
+
+    ProfileRequest:
+      type: object
+      additionalProperties: false
+      description: The text part of a profile; the files are separate parts of the same request.
+      required: [ jobTitle, location, experienceLevel, professionalBio ]
+      properties:
+        jobTitle:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Frontend Developer"
+        location:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Bucharest"
+        experienceLevel:
+          type: string
+          enum: [ Entry Level, Mid Level, Senior Level, Executive Level ]
+        professionalBio:
+          type: string
+          minLength: 20
+          maxLength: 5000
+          example: "Frontend developer with 4 years of React experience."
+        portfolioWebsite:
+          type: string
+          maxLength: 500
+          pattern: '^https?://.+'
+          example: "https://my-portfolio.example"
+
+    ProfileResponse:
+      type: object
+      additionalProperties: false
+      description: A profile without file contents; the names and types say which files exist.
+      required: [ id, jobTitle, location, experienceLevel, professionalBio, hasProfilePicture, hasResume ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        jobTitle:
+          type: string
+        location:
+          type: string
+        experienceLevel:
+          type: string
+        professionalBio:
+          type: string
+        portfolioWebsite:
+          type: string
+        hasProfilePicture:
+          type: boolean
+        profilePictureName:
+          type: string
+        profilePictureType:
+          type: string
+        hasResume:
+          type: boolean
+        resumeName:
+          type: string
+        resumeType:
+          type: string
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
+    UnsaveJobResponse:
+      type: object
+      additionalProperties: false
+      required: [ message ]
+      properties:
+        message:
+          type: string
+          example: "Job removed from saved jobs"
+
+    ApplicationStatus:
+      type: string
+      enum: [ PENDING, REVIEWED, SHORTLISTED, INTERVIEWED, OFFERED, REJECTED, WITHDRAWN ]
+
+    ApplyJobRequest:
+      type: object
+      additionalProperties: false
+      required: [ jobId ]
+      properties:
+        jobId:
+          $ref: '#/components/schemas/Uuid'
+        coverLetter:
+          type: string
+          maxLength: 5000
+          description: Optional cover letter.
+
+    JobApplicationResponse:
+      type: object
+      additionalProperties: false
+      required: [ id, job, appliedAt, status ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        job:
+          $ref: '#/components/schemas/JobResponse'
+        appliedAt:
+          $ref: '#/components/schemas/DateTime'
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        coverLetter:
+          type: string
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
+    UpdateJobApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        notes:
+          type: string
+          maxLength: 5000
+          description: Internal notes of the employer. Left out keeps the stored notes; an empty text removes them.
+
+    ApplicantResponse:
+      type: object
+      additionalProperties: false
+      description: The job seeker behind an application, with the profile details (the files have their own endpoints).
+      required: [ userId, name, email, hasResume, hasProfilePicture ]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        email:
+          type: string
+        mobileNumber:
+          type: string
+        jobTitle:
+          type: string
+        location:
+          type: string
+        experienceLevel:
+          type: string
+        professionalBio:
+          type: string
+        portfolioWebsite:
+          type: string
+        hasResume:
+          type: boolean
+        hasProfilePicture:
+          type: boolean
+
+    ReceivedApplicationResponse:
+      type: object
+      additionalProperties: false
+      description: An application as the employer sees it, including the internal notes.
+      required: [ id, jobId, applicant, appliedAt, status ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        jobId:
+          $ref: '#/components/schemas/Uuid'
+        applicant:
+          $ref: '#/components/schemas/ApplicantResponse'
+        appliedAt:
+          $ref: '#/components/schemas/DateTime'
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        coverLetter:
+          type: string
+        notes:
+          type: string
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+
     ContactStatus:
       type: string
       enum: [NEW, CLOSED]
@@ -1290,6 +2077,12 @@ components:
             $ref: '#/components/schemas/ProblemDetails'
     UnsupportedMediaType:
       description: Unsupported Media Type
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PayloadTooLarge:
+      description: Payload Too Large. A file is bigger than 10 MB (or the whole request bigger than 21 MB).
       content:
         application/problem+json:
           schema:

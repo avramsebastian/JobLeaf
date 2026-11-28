@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.repository;
 
-import com.seby.jobleaf.domain.model.ContactStatus;
+import com.seby.jobleaf.domain.model.contact.ContactStatus;
 import com.seby.jobleaf.infrastructure.persistence.entity.ContactEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

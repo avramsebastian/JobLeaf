@@ -4,8 +4,8 @@ import com.seby.jobleaf.apis.generated.model.CompanyResponse;
 import com.seby.jobleaf.apis.generated.model.CompanyAdminResponse;
 import com.seby.jobleaf.apis.generated.model.CompanyRequest;
 import com.seby.jobleaf.apis.generated.model.DeleteCompanyResponse;
-import com.seby.jobleaf.domain.model.Company;
-import com.seby.jobleaf.domain.model.CompanyDetails;
+import com.seby.jobleaf.domain.model.company.Company;
+import com.seby.jobleaf.domain.model.company.CompanyDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

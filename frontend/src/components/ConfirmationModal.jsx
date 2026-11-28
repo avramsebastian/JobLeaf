@@ -8,7 +8,8 @@ const ConfirmationModal = ({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  type = 'info' // 'info', 'warning', 'danger', 'success'
+  type = 'info', // 'info', 'warning', 'danger', 'success'
+  children // optional extra content shown above the buttons (e.g. a cover letter field)
 }) => {
   // Close modal on ESC key
   useEffect(() => {
@@ -85,9 +86,11 @@ const ConfirmationModal = ({
         </h3>
 
         {/* Message */}
-        <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
+        <p className={`text-gray-600 dark:text-gray-400 text-center ${children ? 'mb-4' : 'mb-8'}`}>
           {message}
         </p>
+
+        {children && <div className="mb-8">{children}</div>}
 
         {/* Buttons */}
         <div className="flex gap-3">

@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.adapter;
 
-import com.seby.jobleaf.domain.model.Company;
+import com.seby.jobleaf.domain.model.company.Company;
 import com.seby.jobleaf.infrastructure.persistence.entity.CompanyEntity;
 import com.seby.jobleaf.infrastructure.persistence.mapper.CompanyPersistenceMapper;
 import com.seby.jobleaf.infrastructure.persistence.repository.CompanyJpaRepository;

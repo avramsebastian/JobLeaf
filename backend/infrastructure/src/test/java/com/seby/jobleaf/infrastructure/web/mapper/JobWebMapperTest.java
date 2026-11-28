@@ -1,7 +1,7 @@
 package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.JobResponse;
-import com.seby.jobleaf.domain.model.Job;
+import com.seby.jobleaf.domain.model.job.Job;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

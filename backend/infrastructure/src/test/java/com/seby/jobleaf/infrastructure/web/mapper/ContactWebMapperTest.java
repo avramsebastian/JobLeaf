@@ -2,7 +2,7 @@ package com.seby.jobleaf.infrastructure.web.mapper;
 
 import com.seby.jobleaf.apis.generated.model.CreateContactRequest;
 import com.seby.jobleaf.apis.generated.model.CreateContactResponse;
-import com.seby.jobleaf.domain.model.SystemActor;
+import com.seby.jobleaf.domain.model.user.SystemActor;
 import com.seby.jobleaf.domain.port.in.contact.CreateContactUseCase.CreateContactCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

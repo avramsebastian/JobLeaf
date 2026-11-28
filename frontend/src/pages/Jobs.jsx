@@ -6,6 +6,8 @@ import { useJobsData } from '../contexts/JobsDataContext'
 import { useAuth } from '../context/AuthContext'
 import RefreshButton from '../components/RefreshButton'
 import ConfirmationModal from '../components/ConfirmationModal'
+import CoverLetterField from '../components/CoverLetterField'
+import { isDeadlinePassed, formatDeadline } from '../utils/jobDeadline'
 
 const Jobs = () => {
   const [searchParams] = useSearchParams()
@@ -24,8 +26,9 @@ const Jobs = () => {
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
+  const [coverLetter, setCoverLetter] = useState('')
   
-  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getAllJobsSync } = useJobs()
+  const { applyForJob, saveJob, unsaveJob, isJobApplied, isJobSaved, withdrawApplication, getAllJobsSync, getApplicationStatus } = useJobs()
   const { jobs: apiJobs, loading: jobsLoading, error: jobsError } = useJobsData()
   const { isAuthenticated, isJobSeeker, isEmployer, user } = useAuth()
 
@@ -103,13 +106,14 @@ const Jobs = () => {
   const handleQuickApply = (job) => {
     if (!isAuthenticated || !isJobSeeker) return
     setSelectedJob(job)
+    setCoverLetter('')
     setShowApplyModal(true)
   }
 
   const confirmApply = async () => {
     if (!selectedJob) return
 
-    const result = await applyForJob(selectedJob)
+    const result = await applyForJob(selectedJob, coverLetter)
     if (result.success) {
       showNotification(result.message, 'success')
     } else {
@@ -458,13 +462,27 @@ const Jobs = () => {
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     {getTimeAgo(job.postedDate)} • {job.applicationsCount} applicants
+                    {formatDeadline(job) && (
+                      <div className={isDeadlinePassed(job) ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
+                        {isDeadlinePassed(job) ? 'Closed' : 'Apply by'} {formatDeadline(job)}
+                      </div>
+                    )}
                   </div>
                   
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
                     {!isEmployer && (
                       <>
-                        {isJobApplied(job.id) ? (
+                        {getApplicationStatus(job.id) === 'REJECTED' ? (
+                          // The employer decided: nothing left to withdraw (the backend refuses it too)
+                          <button
+                            disabled
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                            className="px-4 py-2 rounded-xl font-semibold text-sm bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed"
+                          >
+                            Not Selected
+                          </button>
+                        ) : isJobApplied(job.id) ? (
                           <button
                             onClick={(e) => {
                               e.preventDefault()
@@ -474,6 +492,14 @@ const Jobs = () => {
                             className="px-4 py-2 rounded-xl font-semibold transition-colors text-sm border-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:border-red-300 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             Withdraw
+                          </button>
+                        ) : isDeadlinePassed(job) ? (
+                          <button
+                            disabled
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                            className="px-4 py-2 rounded-xl font-semibold text-sm bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed"
+                          >
+                            Applications Closed
                           </button>
                         ) : (
                           <button
@@ -595,7 +621,9 @@ const Jobs = () => {
         confirmText="Yes, Apply"
         cancelText="Cancel"
         type="success"
-      />
+      >
+        <CoverLetterField value={coverLetter} onChange={setCoverLetter} />
+      </ConfirmationModal>
 
       {/* Withdraw Confirmation Modal */}
       <ConfirmationModal

@@ -1,5 +1,9 @@
 package com.seby.jobleaf.infrastructure.web.security;
 
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.security.Principal;
 import java.util.UUID;
 
@@ -20,5 +24,19 @@ public record AuthenticatedUser(UUID id, String email) implements Principal {
     @Override
     public String getName() {
         return email;
+    }
+
+    /**
+     * The user of the current request, for controllers on secured paths.
+     *
+     * @throws AuthenticationCredentialsNotFoundException if nobody is logged in (answered with 401); on a secured
+     *                                                    path the security filter normally stops that earlier
+     */
+    public static AuthenticatedUser current() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+            return user;
+        }
+        throw new AuthenticationCredentialsNotFoundException("No logged-in user");
     }
 }

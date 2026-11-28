@@ -1,6 +1,6 @@
 package com.seby.jobleaf.domain.port.in.user;
 
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 
 /**
  * Inbound port for the admin looking up a user.

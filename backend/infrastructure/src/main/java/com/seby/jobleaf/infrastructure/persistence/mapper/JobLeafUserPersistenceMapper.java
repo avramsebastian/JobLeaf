@@ -1,6 +1,6 @@
 package com.seby.jobleaf.infrastructure.persistence.mapper;
 
-import com.seby.jobleaf.domain.model.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
 import com.seby.jobleaf.infrastructure.persistence.entity.JobLeafUserEntity;
 import org.springframework.stereotype.Component;
 

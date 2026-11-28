@@ -2,9 +2,9 @@ package com.seby.jobleaf.application.service.auth;
 
 import com.seby.jobleaf.domain.exceptions.auth.UserAlreadyExistsException;
 import com.seby.jobleaf.domain.exceptions.domain.DomainValidationException;
-import com.seby.jobleaf.domain.model.AuthToken;
-import com.seby.jobleaf.domain.model.JobLeafUser;
-import com.seby.jobleaf.domain.model.RoleName;
+import com.seby.jobleaf.domain.model.auth.AuthToken;
+import com.seby.jobleaf.domain.model.user.JobLeafUser;
+import com.seby.jobleaf.domain.model.user.RoleName;
 import com.seby.jobleaf.domain.port.in.auth.LoginUseCase.LoginResult;
 import com.seby.jobleaf.domain.port.in.auth.RegisterUseCase;
 import com.seby.jobleaf.domain.port.out.auth.PasswordBreachCheckerPort;
